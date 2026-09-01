@@ -1,0 +1,30 @@
+{
+  "0x28c6c06298d514db089934071355e5743bf21d60": {
+    "name": "Binance",
+    "category": "CENTRALIZED_EXCHANGE",
+    "type": "HOT_WALLET",
+    "jurisdiction": "International",
+    "nodal_email": "compliance@binance.com"
+  },
+  "0x5041ed759dd4afc3a72b8192c143f72f4724081a": {
+    "name": "WazirX",
+    "category": "INDIAN_FIU_REGISTERED_VASP",
+    "type": "HOT_WALLET",
+    "jurisdiction": "India",
+    "nodal_email": "nodal@wazirx.com"
+  },
+  "0x70e30d977462c79435b87729f8f2b74548ad7296": {
+    "name": "CoinDCX",
+    "category": "INDIAN_FIU_REGISTERED_VASP",
+    "type": "HOT_WALLET",
+    "jurisdiction": "India",
+    "nodal_email": "compliance@coindcx.com"
+  },
+  "0x1111111254eeb25477b68fb85ed929f73a960582": {
+    "name": "1inch Aggregator",
+    "category": "DEX_ROUTER",
+    "type": "SMART_CONTRACT",
+    "jurisdiction": "Decentralized",
+    "nodal_email": null
+  }
+}

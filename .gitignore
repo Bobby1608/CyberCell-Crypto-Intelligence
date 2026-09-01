@@ -1,0 +1,90 @@
+# Virtual Environments
+venv/
+env/
+.venv/
+ENV/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# Environment & Secrets (CRITICAL)
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Database & Cache Data
+neo4j_data/
+data/neo4j/
+redis_data/
+*.rdb
+*.sqlite
+*.db
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS & Editor Metadata
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node & Frontend Build
+frontend/node_modules/
+node_modules/
+frontend/dist/
+dist/
+.npm
+.vite/
+
+# Exported Investigation Reports / Temporary Artifacts
+*.pdf
+LEA_Dossier_*.pdf
+Forensic_Report_*.pdf
+
+# Nested External Cloned Repositories & Scratch Scripts
+dawsbot-eth-labels/
+export-report
+get_logs.py
+parse_msg.py
+read_last_msg.py
+test_neo4j.py
+test_subgraph.py
+backend_logs.txt
+
