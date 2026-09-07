@@ -27,46 +27,46 @@ export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Forensic classification badge colors
+  // Forensic classification badge styling (Light theme primary with high contrast)
   const getBadgeStyle = () => {
     if (nodeData.is_vasp) {
-        return {
-          bg: 'rgba(16, 185, 129, 0.15)',
-          border: 'rgba(16, 185, 129, 0.6)',
-          text: '#6ee7b7',
-          glow: '0 0 15px rgba(16, 185, 129, 0.3)',
-          label: nodeData.vasp_name ? `HOT WALLET: ${nodeData.vasp_name.toUpperCase()}` : 'VASP DEPOSIT',
-          icon: Building2
-        };
+      return {
+        bg: '#ecfdf5',
+        border: '#a7f3d0',
+        text: '#047857',
+        handleColor: '#059669',
+        label: nodeData.vasp_name ? `HOT WALLET: ${nodeData.vasp_name.toUpperCase()}` : 'VASP DEPOSIT',
+        icon: Building2
+      };
     }
-    
+
     switch (nodeType) {
       case 'suspect':
       case 'victim':
         return {
-          bg: 'rgba(239, 68, 68, 0.15)',
-          border: 'rgba(239, 68, 68, 0.6)',
-          text: '#fca5a5',
-          glow: '0 0 15px rgba(239, 68, 68, 0.4)',
+          bg: '#fef2f2',
+          border: '#fca5a5',
+          text: '#dc2626',
+          handleColor: '#ef4444',
           label: 'ROOT SUSPECT',
           icon: ShieldAlert
         };
       case 'exchange':
       case 'defi':
         return {
-          bg: 'rgba(16, 185, 129, 0.15)',
-          border: 'rgba(16, 185, 129, 0.6)',
-          text: '#6ee7b7',
-          glow: '0 0 15px rgba(16, 185, 129, 0.3)',
+          bg: '#ecfdf5',
+          border: '#a7f3d0',
+          text: '#047857',
+          handleColor: '#059669',
           label: nodeType === 'exchange' ? 'VASP DEPOSIT' : 'DEFI POOL',
           icon: Building2
         };
       default:
         return {
-          bg: 'rgba(245, 158, 11, 0.15)',
-          border: 'rgba(245, 158, 11, 0.6)',
-          text: '#fcd34d',
-          glow: '0 0 12px rgba(245, 158, 11, 0.3)',
+          bg: '#eff6ff',
+          border: '#bfdbfe',
+          text: '#1d4ed8',
+          handleColor: '#2563eb',
           label: nodeData.hopCount ? `HOP ${nodeData.hopCount}` : 'INTERMEDIARY',
           icon: GitCommit
         };
@@ -79,15 +79,16 @@ export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
   return (
     <div
       style={{
-        width: 240,
+        width: 248,
         padding: '12px 14px',
         borderRadius: '12px',
-        background: 'rgba(15, 23, 42, 0.85)',
-        backdropFilter: 'blur(10px)',
-        border: `1.5px solid ${selected ? '#38bdf8' : style.border}`,
-        boxShadow: selected ? '0 0 20px rgba(56, 189, 248, 0.5)' : style.glow,
-        color: '#f8fafc',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
+        background: '#ffffff',
+        border: selected ? '2px solid #0284c7' : `1.5px solid ${style.border}`,
+        boxShadow: selected
+          ? '0 0 0 3px rgba(2, 132, 199, 0.2), 0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+          : '0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04)',
+        color: '#0f172a',
+        fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
         transition: 'all 0.2s ease-in-out',
         position: 'relative'
       }}
@@ -97,10 +98,11 @@ export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
         type="target"
         position={Position.Left}
         style={{
-          background: style.text,
+          background: style.handleColor,
           width: 10,
           height: 10,
-          border: '2px solid #0f172a'
+          border: '2px solid #ffffff',
+          boxShadow: '0 0 4px rgba(0,0,0,0.15)'
         }}
       />
 
@@ -118,7 +120,7 @@ export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
             color: style.text,
             fontSize: '11px',
             fontWeight: 700,
-            letterSpacing: '0.5px'
+            letterSpacing: '0.3px'
           }}
         >
           <IconComponent size={12} />
@@ -132,8 +134,9 @@ export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
               fontWeight: 800,
               padding: '2px 6px',
               borderRadius: '4px',
-              background: nodeData.riskScore === 'HIGH' || nodeData.riskScore === 'CRITICAL' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(100, 116, 139, 0.3)',
-              color: nodeData.riskScore === 'HIGH' || nodeData.riskScore === 'CRITICAL' ? '#f87171' : '#cbd5e1'
+              background: nodeData.riskScore === 'HIGH' || nodeData.riskScore === 'CRITICAL' ? '#fef2f2' : '#f1f5f9',
+              border: `1px solid ${nodeData.riskScore === 'HIGH' || nodeData.riskScore === 'CRITICAL' ? '#fca5a5' : '#cbd5e1'}`,
+              color: nodeData.riskScore === 'HIGH' || nodeData.riskScore === 'CRITICAL' ? '#dc2626' : '#475569'
             }}
           >
             {nodeData.riskScore}
@@ -142,13 +145,14 @@ export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
       </div>
 
       {/* Address & Copy Action */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
         <span
           style={{
-            fontFamily: 'ui-monospace, Consolas, monospace',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlop, Consolas, monospace',
             fontSize: '13px',
-            fontWeight: 600,
-            color: '#e2e8f0'
+            fontWeight: 700,
+            color: '#0f172a',
+            letterSpacing: '-0.2px'
           }}
           title={address}
         >
@@ -158,19 +162,19 @@ export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
         <button
           onClick={handleCopy}
           style={{
-            background: 'transparent',
-            border: 'none',
-            color: copied ? '#4ade80' : '#94a3b8',
+            background: copied ? '#ecfdf5' : '#f8fafc',
+            border: `1px solid ${copied ? '#a7f3d0' : '#e2e8f0'}`,
+            color: copied ? '#059669' : '#64748b',
             cursor: 'pointer',
-            padding: '4px',
+            padding: '4px 6px',
             display: 'flex',
             alignItems: 'center',
-            borderRadius: '4px',
-            transition: 'color 0.15s ease'
+            borderRadius: '6px',
+            transition: 'all 0.15s ease'
           }}
           title="Copy full address"
         >
-          {copied ? <Check size={14} /> : <Copy size={14} />}
+          {copied ? <Check size={13} /> : <Copy size={13} />}
         </button>
       </div>
 
@@ -179,10 +183,11 @@ export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
         type="source"
         position={Position.Right}
         style={{
-          background: style.text,
+          background: style.handleColor,
           width: 10,
           height: 10,
-          border: '2px solid #0f172a'
+          border: '2px solid #ffffff',
+          boxShadow: '0 0 4px rgba(0,0,0,0.15)'
         }}
       />
     </div>
@@ -190,3 +195,4 @@ export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
 };
 
 export default WalletNode;
+
