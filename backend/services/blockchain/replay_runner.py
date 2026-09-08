@@ -42,13 +42,17 @@ class ReplayRunner:
 
         print(f"[+] Loaded {len(records_data)} mock transactions for replay.")
 
+        import time
         for item in records_data:
             await asyncio.sleep(self.interval_seconds)
+            t1_ns = time.perf_counter_ns()
 
             rec = TransactionRecord(
                 tx_hash=item["tx_hash"],
                 block_number=item["block_number"],
                 timestamp=item["timestamp"],
+                t0_sec=item["timestamp"],
+                t1_ns=t1_ns,
                 from_address=item["from_address"].lower(),
                 to_address=item["to_address"].lower(),
                 amount=Decimal(str(item["amount"])),
@@ -77,7 +81,8 @@ class ReplayRunner:
                 "amount": float(rec.amount),
                 "asset_symbol": rec.asset_symbol,
                 "block_number": rec.block_number,
-                "timestamp": rec.timestamp
+                "timestamp": rec.timestamp,
+                "t1_ns": t1_ns
             })
 
             # 2. Dispatch GRAPH_UPDATED
@@ -86,7 +91,8 @@ class ReplayRunner:
                 "from_address": rec.from_address,
                 "to_address": rec.to_address,
                 "amount": float(rec.amount),
-                "asset_symbol": rec.asset_symbol
+                "asset_symbol": rec.asset_symbol,
+                "t1_ns": t1_ns
             })
 
             # 3. Evaluate Downstream Subgraph Risk
@@ -106,7 +112,8 @@ class ReplayRunner:
                         "risk_score": report.risk_score,
                         "typologies": typology_dict,
                         "reasons": report.reasons,
-                        "valid_paths": report.valid_paths
+                        "valid_paths": report.valid_paths,
+                        "t1_ns": t1_ns
                     })
                     print(f"[REPLAY] Evaluated Risk Score: {report.risk_score} | Paths: {report.paths_detected}")
             except Exception as exc:

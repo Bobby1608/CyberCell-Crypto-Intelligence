@@ -25,13 +25,16 @@ class AsyncNeo4jLoader:
             "CREATE CONSTRAINT wallet_address_unique IF NOT EXISTS FOR (w:Wallet) REQUIRE w.address IS UNIQUE",
             "CREATE CONSTRAINT tx_hash_unique IF NOT EXISTS FOR (t:Transaction) REQUIRE t.tx_hash IS UNIQUE"
         ]
-        async with self.driver.session() as session:
-            for query in constraints:
-                try:
-                    res = await session.run(query)
-                    await res.consume()
-                except Exception as e:
-                    print(f"[DB] Note on schema constraint creation: {e}")
+        try:
+            async with self.driver.session() as session:
+                for query in constraints:
+                    try:
+                        res = await session.run(query)
+                        await res.consume()
+                    except Exception as e:
+                        print(f"[DB] Note on schema constraint creation: {e}")
+        except Exception as exc:
+            print(f"[!] DB Schema init note: Neo4j database service unavailable at {NEO4J_URI} ({exc})")
 
     async def save_transaction_record(self, record: TransactionRecord, publish_event: bool = True):
         """Idempotent insert of transaction and wallet entities."""
@@ -72,10 +75,13 @@ class AsyncNeo4jLoader:
             "status": record.status.value
         }
 
-        async with self.driver.session() as session:
-            result = await session.run(query, parameters=params)
-            await result.consume()  # Guarantee transaction commit before returning
-            print(f"[DB] Persisted TX {record.tx_hash} to Neo4j")
+        try:
+            async with self.driver.session() as session:
+                result = await session.run(query, parameters=params)
+                await result.consume()  # Guarantee transaction commit before returning
+                print(f"[DB] Persisted TX {record.tx_hash} to Neo4j")
+        except Exception as exc:
+            print(f"[!] DB Save note: Neo4j database service unavailable at {NEO4J_URI} ({exc})")
 
         # Hook into Event Bus only if requested
         if publish_event:

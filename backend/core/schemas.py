@@ -16,6 +16,8 @@ class TransactionRecord(BaseModel):
     tx_hash: str
     block_number: int
     timestamp: int
+    t0_sec: Optional[int] = None       # On-chain block header timestamp
+    t1_ns: Optional[int] = None        # Microsecond/nanosecond ingress timestamp (perf_counter_ns)
     from_address: str
     to_address: Optional[str] = None
     amount: Decimal

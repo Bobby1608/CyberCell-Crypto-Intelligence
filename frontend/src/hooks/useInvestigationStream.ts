@@ -55,8 +55,14 @@ export function useInvestigationStream(options: UseInvestigationStreamOptions = 
       };
 
       const handleMessage = (event_type: SSEEventPayload['event'], rawData: string) => {
+        const t6_ms = performance.now();
         try {
           const parsedData = JSON.parse(rawData);
+          
+          if (parsedData) {
+            parsedData._t6_ms = t6_ms;
+          }
+
           const eventEnvelope: SSEEventPayload = {
             event: event_type,
             data: parsedData,

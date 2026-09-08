@@ -80,13 +80,17 @@ dist/
 LEA_Dossier_*.pdf
 Forensic_Report_*.pdf
 
-# Nested External Cloned Repositories & Scratch Scripts
-dawsbot-eth-labels/
+# Extra Architecture & Scratch Files (NOT for production push)
+cybercell_architecture-v4.md
+mainarch.md
 export-report
 get_logs.py
 parse_msg.py
 read_last_msg.py
 test_neo4j.py
 test_subgraph.py
+sepolia-watcher/
 backend_logs.txt
 
+# Nested External Cloned Repositories
+dawsbot-eth-labels/

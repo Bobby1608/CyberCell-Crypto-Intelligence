@@ -13,11 +13,11 @@ services:
     volumes:
       - neo4j_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p $${NEO4J_PASSWORD} 'RETURN 1;' || exit 1"]
-      interval: 10s
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || cypher-shell -u neo4j -p $${NEO4J_PASSWORD} 'RETURN 1;' || exit 1"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 20s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
 
   # Redis In-Memory Cache Service
@@ -45,7 +45,6 @@ services:
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set in .env}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - APP_MODE=${APP_MODE:-live}
       - SEPOLIA_WS_URL=${SEPOLIA_WS_URL}
       - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
     env_file:

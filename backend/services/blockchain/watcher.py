@@ -1,5 +1,6 @@
 import os
 import asyncio
+import time
 from decimal import Decimal
 from typing import Set, Dict, Tuple, Optional, Callable, List
 from web3 import AsyncWeb3, WebSocketProvider
@@ -83,9 +84,13 @@ class BlockchainWatcher:
             if not edge_records:
                 return
 
-            G = build_temporal_graph(edge_records)
-            causal_paths = extract_valid_fund_paths(G, self.root_suspect, max_depth=4)
-            report = evaluate_risk(self.root_suspect, G, causal_paths)
+            def _compute_risk_sync(records, root):
+                from backend.services.risk.temporal_analyzer import build_temporal_graph, extract_valid_fund_paths, evaluate_risk
+                G = build_temporal_graph(records)
+                causal_paths = extract_valid_fund_paths(G, root, max_depth=4)
+                return evaluate_risk(root, G, causal_paths)
+
+            report = await asyncio.to_thread(_compute_risk_sync, edge_records, self.root_suspect)
 
             print("\n" + "="*50)
             print(f"[RISK ENGINE] Evaluated Paths from {self.root_suspect}")
@@ -126,6 +131,7 @@ class BlockchainWatcher:
             await w3.eth.subscribe("newHeads")
             
             async for payload in w3.socket.process_subscriptions():
+                t1_ns = time.perf_counter_ns()
                 header = payload.get("result")
                 if not header or not header.get("hash"):
                     continue
@@ -167,6 +173,8 @@ class BlockchainWatcher:
                             tx_hash=tx_hash,
                             block_number=block_num,
                             timestamp=block_time,
+                            t0_sec=block_time,
+                            t1_ns=t1_ns,
                             from_address=tx_from,
                             to_address=tx_to,
                             amount=eth_amount,
@@ -230,6 +238,8 @@ class BlockchainWatcher:
                                 tx_hash=tx_hash,
                                 block_number=block_num,
                                 timestamp=block_time,
+                                t0_sec=block_time,
+                                t1_ns=t1_ns,
                                 from_address=log_from,
                                 to_address=log_to,
                                 amount=normalized_amount,
@@ -259,7 +269,8 @@ class BlockchainWatcher:
                 "amount": float(record.amount),
                 "asset_symbol": record.asset_symbol or "ETH",
                 "block_number": record.block_number,
-                "timestamp": record.timestamp
+                "timestamp": record.timestamp,
+                "t1_ns": record.t1_ns
             })
         except Exception as exc:
             print(f"[!] Warning publishing TX_INCLUDED: {exc}")

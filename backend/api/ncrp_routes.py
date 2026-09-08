@@ -19,19 +19,19 @@ class CrimeCategory(str, Enum):
     UNAUTHORIZED_TRANSFER = "UNAUTHORIZED_TRANSFER"
 
 class NCRPComplaintPayload(BaseModel):
-    acknowledgement_no: str = Field(..., example="2026/NCRP/MH/0048192")
-    incident_timestamp: int = Field(..., example=1788255756)
+    acknowledgement_no: str = Field(..., json_schema_extra={"example": "2026/NCRP/MH/0048192"})
+    incident_timestamp: int = Field(..., json_schema_extra={"example": 1788255756})
     crime_category: CrimeCategory
-    victim_name: str = Field(..., example="Aarav Sharma")
-    victim_contact: str = Field(..., example="+91-9876543210")
-    reported_wallet: str = Field(..., example="0xb1ad40e588959c203617cd55b5cd32cc2795a9ff")
-    chain: str = Field(default="sepolia", example="sepolia")
-    reported_loss_inr: Decimal = Field(..., example=250000.00)
-    reported_loss_crypto: Decimal = Field(..., example=0.085)
-    asset_symbol: str = Field(default="ETH", example="ETH")
-    police_station: str = Field(..., example="Cyber Crime Police Station, Wadala")
-    district: str = Field(..., example="Mumbai City")
-    state: str = Field(default="Maharashtra", example="Maharashtra")
+    victim_name: str = Field(..., json_schema_extra={"example": "Aarav Sharma"})
+    victim_contact: str = Field(..., json_schema_extra={"example": "+91-9876543210"})
+    reported_wallet: str = Field(..., json_schema_extra={"example": "0xb1ad40e588959c203617cd55b5cd32cc2795a9ff"})
+    chain: str = Field(default="sepolia", json_schema_extra={"example": "sepolia"})
+    reported_loss_inr: Decimal = Field(..., json_schema_extra={"example": 250000.00})
+    reported_loss_crypto: Decimal = Field(..., json_schema_extra={"example": 0.085})
+    asset_symbol: str = Field(default="ETH", json_schema_extra={"example": "ETH"})
+    police_station: str = Field(..., json_schema_extra={"example": "Cyber Crime Police Station, Wadala"})
+    district: str = Field(..., json_schema_extra={"example": "Mumbai City"})
+    state: str = Field(default="Maharashtra", json_schema_extra={"example": "Maharashtra"})
 
 class NCRPIngestResponse(BaseModel):
     status: str

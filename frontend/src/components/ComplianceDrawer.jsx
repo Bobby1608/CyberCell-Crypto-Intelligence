@@ -57,7 +57,7 @@ export default function ComplianceDrawer({
         portal: 'N/A',
       };
 
-  const caseId = caseMetadata?.caseId || 'SIH-2026-CR-MOCK99';
+  const caseId = caseMetadata?.caseId || 'SIH-2026-CR-PENDING';
   const targetWallet = selectedNode.data?.address || selectedNode.id;
 
   const formalNoticeText = `NOTICE UNDER SECTION 94 OF THE BHARATIYA NAGARIK SURAKSHA SANHITA (BNSS), 2023

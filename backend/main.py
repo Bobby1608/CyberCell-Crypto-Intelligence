@@ -1,9 +1,17 @@
 import os
 import asyncio
+import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.JSONRenderer()
+    ]
+)
 
 from backend.api.routes import router as api_router
 from backend.api.ncrp_routes import router as ncrp_router
@@ -23,19 +31,13 @@ async def lifespan(app: FastAPI):
     """
     global watcher_instance, watcher_task
     
-    app_mode = os.getenv("APP_MODE", "live").lower()
     ws_url = os.getenv("SEPOLIA_WS_URL")
     wallet_a = os.getenv("ROOT_SUSPECT_ADDRESS", "0xb1ad40e588959c203617cd55b5cd32cc2795a9ff")
     wallet_b = os.getenv("HOP_1_ADDRESS", "0x8ee589da48c2a3a51030f60a4bb51241bb18a07f")
 
-    print(f"[*] Starting Real-Time Forensics Engine (Mode: {app_mode.upper()})...")
+    print("[*] Starting Real-Time Forensics Engine...")
 
-    if app_mode == "replay":
-        print("[+] APP_MODE=replay detected. Launching ReplayRunner offline simulation...")
-        from backend.services.blockchain.replay_runner import ReplayRunner
-        watcher_instance = ReplayRunner()
-        watcher_task = asyncio.create_task(watcher_instance.start())
-    elif ws_url:
+    if ws_url:
         print("[+] Initializing Live Sepolia WebSocket Watcher...")
         watcher_instance = BlockchainWatcher(
             ws_url=ws_url,
@@ -74,7 +76,15 @@ app = FastAPI(
 # CORS Configuration for Frontend UI (React / Vite)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
