@@ -1,13 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from backend.services.reporting.lea_dossier_generator import LEADossierGenerator
 from backend.services.attribution.vasp_engine import VASPEngine
 from backend.services.graph.subgraph_extractor import SubgraphExtractor
+from backend.api.auth import verify_api_key
 
 report_router = APIRouter(prefix="/api/v1/investigation", tags=["Investigation Reports"])
 vasp_engine = VASPEngine()
 
-@report_router.get("/{address}/export-report")
+@report_router.get("/{address}/export-report", dependencies=[Depends(verify_api_key)])
 async def export_investigation_dossier(address: str, ncrp_ack: str = "2026/NCRP/MH/0048192"):
     clean_addr = address.lower()
     

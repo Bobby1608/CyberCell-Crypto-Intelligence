@@ -20,18 +20,18 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  # Redis In-Memory Cache Service
+  # Redis for pub/sub and distributed state
   redis:
     image: redis:7.2-alpine
     container_name: forensics_redis
     ports:
       - "6379:6379"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
-    restart: unless-stopped
 
   # FastAPI Blockchain Forensics Backend Worker & API Server
   backend:
@@ -43,10 +43,9 @@ services:
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=${NEO4J_USER:-neo4j}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set in .env}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
       - SEPOLIA_WS_URL=${SEPOLIA_WS_URL}
       - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
     env_file:
       - .env
     ports:

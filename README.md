@@ -4,7 +4,9 @@
 > **Organization:** Ministry of Home Affairs (MHA) / Indian Cyber Crime Coordination Centre (I4C)  
 > **Theme:** Blockchain & Cybersecurity  
 
-An enterprise-grade, real-time cryptocurrency forensic intelligence platform designed for Law Enforcement Agencies (LEAs) to ingest victim fraud complaints, trace multi-hop layering trails across EVM chains, identify terminal Virtual Asset Service Providers (VASPs/Exchanges), and generate statutory asset-freezing dossiers under **Section 94 BNSS** and **Section 63 BSA**.
+An enterprise-grade, real-time cryptocurrency forensic intelligence platform designed for Law Enforcement Agencies (LEAs) to ingest victim fraud complaints, trace multi-hop layering trails across EVM chains, identify terminal Virtual Asset Service Providers (VASPs/Exchanges), and generate statutory asset-freezing dossiers formatted to align with **Section 94 BNSS** and **Section 63 BSA** documentation requirements.
+
+> **Note:** This repository features a high-performance, real-time forensic engine backed by **Neo4j 5.18 Graph DB** and **Redis Pub/Sub** for event streaming and deduplication state management.
 
 ---
 
@@ -24,9 +26,9 @@ An enterprise-grade, real-time cryptocurrency forensic intelligence platform des
 |  |  (Unbuffered SSE)  |        |  Python 3.11 Runtime|        |  (w:Wallet)-[:SENT]->(tx)-...  |  |
 |  +--------------------+        +---------------------+        +--------------------------------+  |
 |           ^                               |                                                       |
-|           | (text/event-stream)           +------------------------> +-------------------------+  |
-|           v                               |                          |  Redis 7.2 Cache (TTL)  |  |
-|  +--------------------+                   v                          +-------------------------+  |
+|           | (text/event-stream)           +------------------------>                            |
+|           v                               |                                                       |
+|  +--------------------+                   v                                                       |
 |  | React Flow Canvas  |        +---------------------+                                            |
 |  | Dagre Auto-Layout  |        |  NetworkX Risk DAG  |                                            |
 |  | Live Monitor Feed  |        |  Heuristics Engine  |                                            |
@@ -42,7 +44,7 @@ An enterprise-grade, real-time cryptocurrency forensic intelligence platform des
 * **Live Ingestion**: `AsyncWeb3` WebSocket client subscribing to `newHeads` on Sepolia/EVM testnets.
 * **On-Demand Recursive Crawler**: `httpx.AsyncClient` pipeline with dual-provider fallback (Etherscan V2 API & Blockscout REST API) resolving transactions down to $k=3$ hops dynamically.
 * **Decimal Normalization**: Fixed-precision arithmetic using Python `Decimal` preventing precision loss across ERC-20 tokens (e.g., USDT $10^6$, WETH $10^{18}$).
-* **Sub-50ms Redis Caching**: Deterministic query hashing (`tx:{chain_id}:{address}:{start}:{end}:{action}`) preventing upstream rate-limiting.
+* **Sub-50ms TTL In-Memory Caching**: Deterministic query hashing (`tx:{chain_id}:{address}:{start}:{end}:{action}`) preventing upstream rate-limiting.
 
 ### 2. Neo4j Property Graph Topology
 * Explicit decoupled schema: `(:Wallet)-[:SENT]->(:Transaction)-[:RECEIVED_BY]->(:Wallet)` and `(:Transaction)-[:TRANSFERRED]->(:Token)`.
@@ -93,7 +95,6 @@ ETHERSCAN_API_KEY=YOUR_ETHERSCAN_KEY
 NEO4J_URI=bolt://neo4j:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=cryptoforensics2026
-REDIS_URL=redis://redis:6379/0
 ```
 
 ### Run Full Stack (Docker Compose)
@@ -114,13 +115,14 @@ docker compose ps
 
 ## ⚡ Low-Latency Optimization & Real-Time Performance Stack
 
-Designed for high-throughput forensic analysis under strict LEA response SLA requirements:
+Designed for high-throughput forensic analysis:
+* **Live Surveillance**: "Real-time" specifically refers to our WebSocket watcher reacting to *new* blocks within ~12s. Deep historical tracing utilizes bounded BFS REST queries.
 
 * **[Tenacity](https://tenacity.readthedocs.io/) (Resilience & Retries)**: Exponential backoff with random jitter handling EVM node socket dropouts, rate-limiting HTTP 429s, and transient network partition failures.
 * **[orjson](https://github.com/ijl/orjson) (Fast Serialization)**: C-accelerated JSON encoder providing sub-millisecond serialization for high-frequency SSE event streaming and large graph query responses.
 * **[httpx.AsyncClient](https://www.python-httpx.org/) (Async HTTP Connection Pooling)**: Non-blocking HTTP/2 request multiplexing across Etherscan and Blockscout RPC provider backends.
 * **[sse-starlette](https://github.com/sysid/sse-starlette) (Unbuffered Push Telemetry)**: Server-Sent Events delivering push-based real-time block and transaction feeds to React Flow frontend canvas without polling overhead.
-* **[Redis 7.2](https://redis.io/) (Sub-50ms TTL Caching)**: Query hash caching for multi-hop graph expansion, reducing API latency from $>1500\text{ms}$ down to $<50\text{ms}$.
+* **In-Memory TTL Caching**: Query hash caching for multi-hop graph expansion, reducing repetitive API latency from $>1500\text{ms}$ down to $<50\text{ms}$.
 * **[structlog](https://www.structlog.org/) (Structured Audit Trail)**: Zero-overhead ISO-timestamped JSON logging for evidentiary accountability and Section 63 BSA compliance.
 
 ---

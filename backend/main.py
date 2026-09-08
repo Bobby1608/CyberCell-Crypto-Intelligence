@@ -20,7 +20,7 @@ from backend.services.blockchain.watcher import BlockchainWatcher
 
 load_dotenv()
 
-watcher_instance: getattr(BlockchainWatcher, "__name__", None) = None
+watcher_instance: BlockchainWatcher | None = None
 watcher_task: asyncio.Task = None
 
 @asynccontextmanager
@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     
     ws_url = os.getenv("SEPOLIA_WS_URL")
     wallet_a = os.getenv("ROOT_SUSPECT_ADDRESS", "0xb1ad40e588959c203617cd55b5cd32cc2795a9ff")
-    wallet_b = os.getenv("HOP_1_ADDRESS", "0x8ee589da48c2a3a51030f60a4bb51241bb18a07f")
+    wallet_b = os.getenv("HOP_1_ADDRESS", "0x8ee589da48e2a3a51030f60a4bb51241bb18a07")
 
     print("[*] Starting Real-Time Forensics Engine...")
 

@@ -1,11 +1,12 @@
 from enum import Enum
 from decimal import Decimal
 from typing import Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 from datetime import datetime
 from backend.services.event_bus import event_bus
 from backend.services.attribution.vasp_engine import VASPEngine
+from backend.api.auth import verify_api_key
 
 router = APIRouter(prefix="/api/v1/integrations/ncrp", tags=["NCRP / SAHYOG Integration"])
 vasp_engine = VASPEngine()
@@ -41,7 +42,7 @@ class NCRPIngestResponse(BaseModel):
     initial_attribution: dict
     actions_triggered: list[str]
 
-@router.post("/ingest", response_model=NCRPIngestResponse)
+@router.post("/ingest", response_model=NCRPIngestResponse, dependencies=[Depends(verify_api_key)])
 async def ingest_ncrp_complaint(complaint: NCRPComplaintPayload, background_tasks: BackgroundTasks):
     clean_wallet = complaint.reported_wallet.lower()
     
