@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -48,12 +48,16 @@ export const InvestigationDashboard: React.FC = () => {
       ? `http://localhost:8000${endpoint}`
       : endpoint;
 
+  const API_KEY = import.meta.env.VITE_API_KEY || 'demo-key-2026';
+
   // Fetch initial graph snapshot from REST API
   const fetchGraphSnapshot = useCallback(async (targetAddr: string, crawl: boolean = false) => {
     if (!targetAddr) return;
     if (crawl) setLoading(true);
     try {
-      const response = await fetch(getApiUrl(`/api/v1/investigation/${targetAddr}?crawl=${crawl}`));
+      const response = await fetch(getApiUrl(`/api/v1/investigation/${targetAddr}?crawl=${crawl}`), {
+        headers: { 'X-API-Key': API_KEY }
+      });
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);
       }
@@ -103,27 +107,81 @@ export const InvestigationDashboard: React.FC = () => {
     if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
     fetchTimerRef.current = setTimeout(() => {
       fetchGraphSnapshot(targetAddr, false);
-    }, 400);
+    }, 50);
   }, [fetchGraphSnapshot]);
+
+  // Track the latest processed event telemetry
+  const latestTelemetryRef = useRef<{ t1_ns?: number; t6_ms?: number, backend_latency_ms?: number } | null>(null);
 
   // Hook into Real-Time SSE Stream
   const { isConnected, events, latestRiskReport } = useInvestigationStream({
-    onTxIncluded: () => {
+    onTxIncluded: (data) => {
+      if (data) {
+        latestTelemetryRef.current = { t1_ns: data.telemetry?.t1_ns, t6_ms: data._t6_ms, backend_latency_ms: data.telemetry?.backend_latency_ms };
+      }
       if (activeRoot) debouncedFetchSnapshot(activeRoot);
     },
-    onGraphUpdated: () => {
+    onGraphUpdated: (data) => {
+      if (data) {
+        latestTelemetryRef.current = { t1_ns: data.telemetry?.t1_ns, t6_ms: data._t6_ms, backend_latency_ms: data.telemetry?.backend_latency_ms };
+      }
       if (activeRoot) debouncedFetchSnapshot(activeRoot);
     },
     onRiskEvaluated: (report) => {
-      if (report && report.root_address === activeRoot) {
-        setRiskReport(report);
+      if (report) {
+        latestTelemetryRef.current = { t1_ns: report.telemetry?.t1_ns, t6_ms: report._t6_ms, backend_latency_ms: report.telemetry?.backend_latency_ms };
+        if (report.root_address?.toLowerCase() === activeRoot?.toLowerCase()) {
+          // Merge: preserve vasp_attribution from prior REST fetch if SSE event has none
+          setRiskReport((prev: any) => ({
+            ...prev,
+            ...report,
+            vasp_attribution: report.vasp_attribution ?? prev?.vasp_attribution
+          }));
+        }
       }
     }
   });
 
+  // Fallback telemetry capture from stream event feed updates
   useEffect(() => {
-    if (latestRiskReport && latestRiskReport.root_address === activeRoot) {
-      setRiskReport(latestRiskReport);
+    if (events.length > 0) {
+      const latestData = events[0]?.data;
+      if (latestData?._t6_ms && !latestTelemetryRef.current) {
+        latestTelemetryRef.current = {
+          t1_ns: latestData.telemetry?.t1_ns,
+          t6_ms: latestData._t6_ms,
+          backend_latency_ms: latestData.telemetry?.backend_latency_ms
+        };
+      }
+    }
+  }, [events]);
+
+  useLayoutEffect(() => {
+    if (latestTelemetryRef.current?.t6_ms) {
+      const t7_ms = performance.now();
+      const { t1_ns, t6_ms, backend_latency_ms } = latestTelemetryRef.current;
+
+      const renderDeltaMs = t7_ms - t6_ms;
+      console.log(`[Telemetry] T6 -> T7 (React DOM Render): ${renderDeltaMs.toFixed(2)} ms`);
+
+      if (t1_ns) {
+        const backendMs = backend_latency_ms || 0;
+        const internalTransitMs = (t7_ms - t6_ms) + backendMs;
+        console.log(`[Telemetry] Pipeline Transit (Backend + Frontend): ~${internalTransitMs.toFixed(2)} ms`);
+      }
+
+      latestTelemetryRef.current = null;
+    }
+  }, [nodes, edges, events]);
+
+  useEffect(() => {
+    if (latestRiskReport && latestRiskReport.root_address?.toLowerCase() === activeRoot?.toLowerCase()) {
+      // Merge: preserve vasp_attribution from prior REST fetch if SSE event has none
+      setRiskReport((prev: any) => ({
+        ...prev,
+        ...latestRiskReport,
+        vasp_attribution: latestRiskReport.vasp_attribution ?? prev?.vasp_attribution
+      }));
     }
   }, [latestRiskReport, activeRoot]);
 
@@ -136,11 +194,29 @@ export const InvestigationDashboard: React.FC = () => {
     }
   };
 
+  const handleAddSurveillance = async () => {
+    if (!surveillanceInput.trim()) return;
+    try {
+      const res = await fetch(getApiUrl('/api/v1/surveillance/add'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+        body: JSON.stringify({ address: surveillanceInput.trim() })
+      });
+      if (res.ok) {
+        alert(`Successfully added ${surveillanceInput} to surveillance!`);
+        setSurveillanceInput('');
+        setShowSurveillanceModal(false);
+      }
+    } catch (exc) {
+      alert(`Failed to add surveillance: ${exc}`);
+    }
+  };
+
   const submitNCRP = async (data: any) => {
     try {
       const res = await fetch(getApiUrl('/api/v1/integrations/ncrp/ingest'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
         body: JSON.stringify(data)
       });
       const responseData = await res.json();
@@ -161,7 +237,9 @@ export const InvestigationDashboard: React.FC = () => {
     if (!activeRoot) return;
     setIsDownloadingDossier(true);
     try {
-      const response = await fetch(getApiUrl(`/api/v1/investigation/${activeRoot}/export-report`));
+      const response = await fetch(getApiUrl(`/api/v1/investigation/${activeRoot}/export-report`), {
+        headers: { 'X-API-Key': API_KEY }
+      });
       if (!response.ok) throw new Error('Failed to generate report');
       
       const blob = await response.blob();

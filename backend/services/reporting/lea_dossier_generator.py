@@ -69,6 +69,12 @@ class LEADossierGenerator:
             leading=11,
             textColor=colors.HexColor('#991b1b')
         )
+        address_style = ParagraphStyle(
+            'AddressStyle',
+            parent=body_style,
+            fontSize=7,
+            wordWrap='CJK'
+        )
 
         # Header
         story.append(Paragraph("CYBER FRAUD INTELLIGENCE & FORENSIC ATTRIBUTION REPORT", title_style))
@@ -80,9 +86,9 @@ class LEADossierGenerator:
         meta_data = [
             [Paragraph("<b>Case Reference ID:</b>", body_style), Paragraph(case_id, body_style), Paragraph("<b>Date & Time:</b>", body_style), Paragraph(datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"), body_style)],
             [Paragraph("<b>NCRP Ack Number:</b>", body_style), Paragraph(ncrp_ack, body_style), Paragraph("<b>Blockchain / Ecosystem:</b>", body_style), Paragraph("Ethereum / Sepolia", body_style)],
-            [Paragraph("<b>Root Suspect Address:</b>", body_style), Paragraph(suspect_address, body_style), Paragraph("<b>Composite Risk Score:</b>", body_style), Paragraph(f"<b>{risk_score * 100:.1f} / 100</b>", alert_style)]
+            [Paragraph("<b>Root Suspect Address:</b>", body_style), Paragraph(suspect_address, address_style), Paragraph("<b>Composite Risk Score:</b>", body_style), Paragraph(f"<b>{risk_score * 100:.1f} / 100</b>", alert_style)]
         ]
-        meta_table = Table(meta_data, colWidths=[110, 160, 110, 160])
+        meta_table = Table(meta_data, colWidths=[95, 175, 105, 165])
         meta_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
             ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
@@ -103,10 +109,10 @@ class LEADossierGenerator:
         vasp_data = [
             [Paragraph("<b>Attribution Status:</b>", body_style), Paragraph(f"<b>{vasp_status}</b>", body_style), Paragraph("<b>Attributed VASP:</b>", body_style), Paragraph(f"<b>{target_vasp}</b>", body_style)],
             [Paragraph("<b>Confidence Level:</b>", body_style), Paragraph(f"{attribution.confidence_score * 100:.1f}%", body_style), Paragraph("<b>Entity Type:</b>", body_style), Paragraph(str(attribution.entity_type), body_style)],
-            [Paragraph("<b>Target Deposit Wallet:</b>", body_style), Paragraph(attribution.attributed_address, body_style), Paragraph("<b>Nodal / Legal Contact:</b>", body_style), Paragraph(attribution.nodal_email or "N/A", body_style)],
+            [Paragraph("<b>Target Deposit Wallet:</b>", body_style), Paragraph(attribution.attributed_address, address_style), Paragraph("<b>Nodal / Legal Contact:</b>", body_style), Paragraph(attribution.nodal_email or "N/A", body_style)],
             [Paragraph("<b>Forensic Evidence:</b>", body_style), Paragraph(evidence_text, body_style), "", ""]
         ]
-        vasp_table = Table(vasp_data, colWidths=[110, 160, 110, 160])
+        vasp_table = Table(vasp_data, colWidths=[95, 175, 105, 165])
         vasp_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f0fdf4' if attribution.is_vasp else '#fef2f2')),
             ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#86efac' if attribution.is_vasp else '#fca5a5')),
@@ -129,12 +135,20 @@ class LEADossierGenerator:
         story.append(Paragraph("3. CHRONOLOGICAL TRANSACTION AUDIT TRAIL (CRYPTOGRAPHIC PROOF)", section_style))
         tx_rows = [["Hop", "Tx Hash", "From", "To", "Amount", "Timestamp"]]
         for idx, tx in enumerate(transactions, start=1):
+            amount = tx.get('amount', 0.0)
+            if amount == 0:
+                amount_str = f"0.0000 {tx.get('asset', 'ETH')}"
+            elif amount < 0.0001:
+                amount_str = f"{amount:.6f} {tx.get('asset', 'ETH')}"
+            else:
+                amount_str = f"{amount:.4f} {tx.get('asset', 'ETH')}"
+                
             tx_rows.append([
                 str(idx),
                 Paragraph(tx.get('tx_hash', '')[:14] + "...", body_style),
                 Paragraph(tx.get('from', '')[:10] + "...", body_style),
                 Paragraph(tx.get('to', '')[:10] + "...", body_style),
-                f"{tx.get('amount', 0.0):.4f} {tx.get('asset', 'ETH')}",
+                amount_str,
                 datetime.utcfromtimestamp(tx.get('timestamp', 0)).strftime("%H:%M:%S")
             ])
         
@@ -154,13 +168,20 @@ class LEADossierGenerator:
 
         # Section 4: Recommended Section 94 BNSS Order Text
         story.append(Paragraph("4. DRAFT NOTICE UNDER SECTION 94 BNSS (ACTIONABLE DIRECTIVE)", section_style))
-        directive_text = (
-            f"<b>TO: Compliance Officer / Nodal Authority ({target_vasp})</b><br/>"
-            f"1. You are hereby directed under Section 94 BNSS (erstwhile 91 CrPC) to immediately <b>FREEZE / DEBIT-FREEZE</b> "
-            f"the wallet account associated with deposit address <b>{attribution.attributed_address}</b>.<br/>"
-            f"2. Preserve and provide full KYC records, login IP audit logs, linked bank accounts, and withdrawal destination trails "
-            f"associated with this account within 24 hours of receipt of this notice."
-        )
+        if attribution.is_vasp:
+            directive_text = (
+                f"<b>TO: Compliance Officer / Nodal Authority ({target_vasp})</b><br/>"
+                f"1. You are hereby directed under Section 94 BNSS (erstwhile 91 CrPC) to immediately <b>FREEZE / DEBIT-FREEZE</b> "
+                f"the wallet account associated with deposit address <b>{attribution.attributed_address}</b>.<br/>"
+                f"2. Preserve and provide full KYC records, login IP audit logs, linked bank accounts, and withdrawal destination trails "
+                f"associated with this account within 24 hours of receipt of this notice."
+            )
+        else:
+            directive_text = (
+                f"No centralized exchange or VASP has been identified as the terminal destination for these funds within the traced depth.<br/>"
+                f"<b>Recommend:</b> (1) escalating to SAHYOG/NCRP for cross-referencing against other reported cases, (2) extending trace depth, "
+                f"(3) manual review of terminal address <b>{attribution.attributed_address}</b> by an investigator."
+            )
         story.append(Paragraph(directive_text, body_style))
 
         doc.build(story)

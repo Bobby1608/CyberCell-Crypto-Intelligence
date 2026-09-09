@@ -1,10 +1,12 @@
 import os
 import asyncio
+import time
 from decimal import Decimal
 from typing import Set, Dict, Tuple, Optional, Callable, List
 from web3 import AsyncWeb3, WebSocketProvider
 from eth_abi import decode
 from dotenv import load_dotenv
+import redis.asyncio as redis
 
 from backend.core.schemas import TransactionRecord, TxStatus, AssetType
 from backend.services.blockchain.async_graph_loader import AsyncNeo4jLoader
@@ -36,8 +38,9 @@ class BlockchainWatcher:
         self.watch_addresses: Set[str] = {a.lower() for a in watch_addresses}
         self.root_suspect = root_suspect_address.lower()
         self.on_transaction = on_transaction
-        self.processed_tx_hashes: Dict[str, bool] = {}
         self.token_metadata_cache: Dict[str, Tuple[int, str]] = {}
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        self.redis = redis.from_url(redis_url, decode_responses=True)
         self.db_loader = AsyncNeo4jLoader()
         self.extractor = SubgraphExtractor()
         self._background_tasks: Set[asyncio.Task] = set()
@@ -57,18 +60,22 @@ class BlockchainWatcher:
         except Exception:
             return 18, "ERC20"
 
-    def _is_duplicate(self, tx_hash: str) -> bool:
-        if tx_hash in self.processed_tx_hashes:
-            return True
-        self.processed_tx_hashes[tx_hash] = True
-        if len(self.processed_tx_hashes) > 10000:
-            first_key = next(iter(self.processed_tx_hashes))
-            del self.processed_tx_hashes[first_key]
-        return False
+    async def _is_duplicate(self, tx_hash: str) -> bool:
+        try:
+            # SETNX returns True if key was set (new), False if it already existed
+            is_new = await self.redis.set(f"dedup:{tx_hash}", 1, nx=True, ex=86400)
+            return not is_new
+        except Exception as e:
+            print(f"[!] Redis dedup error: {e}")
+            return False
 
     async def add_surveillance(self, address: str):
         addr_clean = address.strip().lower()
         self.watch_addresses.add(addr_clean)
+        try:
+            await self.redis.sadd(f"watchlist:{self.root_suspect}", addr_clean)
+        except Exception as e:
+            print(f"[!] Redis sadd error: {e}")
         print(f"[+] Added address to surveillance: {addr_clean}")
         try:
             from backend.services.event_bus import event_bus, SURVEILLANCE_ADDED
@@ -83,9 +90,13 @@ class BlockchainWatcher:
             if not edge_records:
                 return
 
-            G = build_temporal_graph(edge_records)
-            causal_paths = extract_valid_fund_paths(G, self.root_suspect, max_depth=4)
-            report = evaluate_risk(self.root_suspect, G, causal_paths)
+            def _compute_risk_sync(records, root):
+                from backend.services.risk.temporal_analyzer import build_temporal_graph, extract_valid_fund_paths, evaluate_risk
+                G = build_temporal_graph(records)
+                causal_paths = extract_valid_fund_paths(G, root, max_depth=4)
+                return evaluate_risk(root, G, causal_paths)
+
+            report = await asyncio.to_thread(_compute_risk_sync, edge_records, self.root_suspect)
 
             print("\n" + "="*50)
             print(f"[RISK ENGINE] Evaluated Paths from {self.root_suspect}")
@@ -98,7 +109,18 @@ class BlockchainWatcher:
             # Hook into Event Bus
             try:
                 from backend.services.event_bus import event_bus, RISK_EVALUATED
+                from backend.services.attribution.vasp_engine import VASPEngine
                 typology_dict = report.typologies.model_dump() if hasattr(report.typologies, "model_dump") else report.typologies.dict()
+
+                # Run VASP attribution for the root suspect so the SSE event carries it
+                try:
+                    vasp_engine = VASPEngine()
+                    vasp_result = vasp_engine.attribute_terminal_path(G, self.root_suspect)
+                    vasp_dict = vasp_result.model_dump() if hasattr(vasp_result, "model_dump") else vasp_result.dict()
+                except Exception as vasp_exc:
+                    print(f"[!] VASP attribution skipped in SSE event: {vasp_exc}")
+                    vasp_dict = None
+
                 await event_bus.publish(RISK_EVALUATED, {
                     "root_address": report.root_address,
                     "paths_detected": report.paths_detected,
@@ -106,7 +128,8 @@ class BlockchainWatcher:
                     "risk_score": report.risk_score,
                     "typologies": typology_dict,
                     "reasons": report.reasons,
-                    "valid_paths": report.valid_paths
+                    "valid_paths": report.valid_paths,
+                    "vasp_attribution": vasp_dict
                 })
             except Exception as exc:
                 print(f"[!] Warning publishing RISK_EVALUATED event: {exc}")
@@ -114,6 +137,18 @@ class BlockchainWatcher:
             print(f"[!] Risk analysis error: {e}")
 
     async def start(self):
+        print("[*] Rehydrating watch list from Redis...")
+        try:
+            # Seed initial addresses to Redis
+            for addr in self.watch_addresses:
+                await self.redis.sadd(f"watchlist:{self.root_suspect}", addr)
+            # Rehydrate from Redis
+            saved_addresses = await self.redis.smembers(f"watchlist:{self.root_suspect}")
+            if saved_addresses:
+                self.watch_addresses.update(saved_addresses)
+        except Exception as e:
+            print(f"[!] Redis watchlist error: {e}")
+
         print("[*] Initializing Neo4j Schema...")
         try:
             await self.db_loader.init_schema()
@@ -121,11 +156,12 @@ class BlockchainWatcher:
             print(f"[!] DB Schema init warning: {e}")
 
         print("[*] Connecting to Sepolia WebSocket...")
-        async with AsyncWeb3(WebSocketProvider(self.ws_url)) as w3:
+        async with AsyncWeb3(WebSocketProvider(self.ws_url, websocket_kwargs={"max_size": 10_485_760})) as w3:
             print(f"[+] Connected. Monitored set: {list(self.watch_addresses)}")
             await w3.eth.subscribe("newHeads")
             
             async for payload in w3.socket.process_subscriptions():
+                t1_ns = time.perf_counter_ns()
                 header = payload.get("result")
                 if not header or not header.get("hash"):
                     continue
@@ -157,7 +193,7 @@ class BlockchainWatcher:
                     tx_to = (tx.get("to") or "").lower()
                     
                     if tx_from in self.watch_addresses or tx_to in self.watch_addresses:
-                        if self._is_duplicate(tx_hash):
+                        if await self._is_duplicate(tx_hash):
                             continue
                             
                         wei_amount = tx.get("value", 0)
@@ -167,6 +203,8 @@ class BlockchainWatcher:
                             tx_hash=tx_hash,
                             block_number=block_num,
                             timestamp=block_time,
+                            t0_sec=block_time,
+                            t1_ns=t1_ns,
                             from_address=tx_from,
                             to_address=tx_to,
                             amount=eth_amount,
@@ -179,67 +217,86 @@ class BlockchainWatcher:
 
                 # --- 2. Process ERC-20 Token Transfers ---
                 try:
-                    logs = await w3.eth.get_logs({
-                        "blockHash": block_hash,
-                        "topics": [ERC20_TRANSFER_TOPIC]
-                    })
-                    
-                    for log in logs:
-                        topics = log.get("topics", [])
-                        if len(topics) < 3:
-                            continue
+                    if self.watch_addresses:
+                        # Pad watched addresses to 32-byte topics for targeted RPC filtering
+                        addr_topics = ["0x000000000000000000000000" + a[2:].lower() for a in self.watch_addresses if len(a) == 42]
                         
-                        log_from = clean_address_from_topic(topics[1])
-                        log_to = clean_address_from_topic(topics[2])
+                        logs_from = await w3.eth.get_logs({
+                            "blockHash": block_hash,
+                            "topics": [ERC20_TRANSFER_TOPIC, addr_topics]
+                        })
+                        logs_to = await w3.eth.get_logs({
+                            "blockHash": block_hash,
+                            "topics": [ERC20_TRANSFER_TOPIC, None, addr_topics]
+                        })
                         
-                        if log_from in self.watch_addresses or log_to in self.watch_addresses:
-                            tx_hash_raw = log.get("transactionHash")
-                            if not tx_hash_raw:
-                                continue
-                            if hasattr(tx_hash_raw, "hex"):
-                                tx_hash = tx_hash_raw.hex()
-                            elif isinstance(tx_hash_raw, bytes):
-                                tx_hash = tx_hash_raw.hex()
-                            else:
-                                tx_hash = str(tx_hash_raw)
-                            tx_hash = tx_hash.lower()
+                        # Merge and deduplicate matching log objects
+                        seen_log_keys = set()
+                        logs = []
+                        for l in list(logs_from) + list(logs_to):
+                            key = (l.get("transactionHash"), l.get("logIndex"))
+                            if key not in seen_log_keys:
+                                seen_log_keys.add(key)
+                                logs.append(l)
 
-                            if self._is_duplicate(tx_hash):
-                                continue
-
-                            raw_data = log.get("data")
-                            if isinstance(raw_data, str):
-                                raw_data = bytes.fromhex(raw_data.replace("0x", ""))
-                            if not raw_data:
+                        for log in logs:
+                            topics = log.get("topics", [])
+                            if len(topics) < 3:
                                 continue
                             
-                            try:
-                                decoded_value = decode(["uint256"], raw_data)[0]
-                            except Exception:
-                                continue
-
-                            if decoded_value == 0:
-                                continue
-
-                            contract_addr = log.get("address", "").lower()
+                            log_from = clean_address_from_topic(topics[1])
+                            log_to = clean_address_from_topic(topics[2])
                             
-                            decimals, symbol = await self._get_token_metadata(w3, contract_addr)
-                            normalized_amount = Decimal(decoded_value) / Decimal(10**decimals)
-                            
-                            record = TransactionRecord(
-                                tx_hash=tx_hash,
-                                block_number=block_num,
-                                timestamp=block_time,
-                                from_address=log_from,
-                                to_address=log_to,
-                                amount=normalized_amount,
-                                raw_amount=str(decoded_value),
-                                asset_type=AssetType.ERC20,
-                                asset_contract=contract_addr,
-                                asset_symbol=symbol,
-                                status=TxStatus.INCLUDED
-                            )
-                            await self._dispatch(record)
+                            if log_from in self.watch_addresses or log_to in self.watch_addresses:
+                                tx_hash_raw = log.get("transactionHash")
+                                if not tx_hash_raw:
+                                    continue
+                                if hasattr(tx_hash_raw, "hex"):
+                                    tx_hash = tx_hash_raw.hex()
+                                elif isinstance(tx_hash_raw, bytes):
+                                    tx_hash = tx_hash_raw.hex()
+                                else:
+                                    tx_hash = str(tx_hash_raw)
+                                tx_hash = tx_hash.lower()
+
+                                if await self._is_duplicate(tx_hash):
+                                    continue
+
+                                raw_data = log.get("data")
+                                if isinstance(raw_data, str):
+                                    raw_data = bytes.fromhex(raw_data.replace("0x", ""))
+                                if not raw_data:
+                                    continue
+                                
+                                try:
+                                    decoded_value = decode(["uint256"], raw_data)[0]
+                                except Exception:
+                                    continue
+
+                                if decoded_value == 0:
+                                    continue
+
+                                contract_addr = log.get("address", "").lower()
+                                
+                                decimals, symbol = await self._get_token_metadata(w3, contract_addr)
+                                normalized_amount = Decimal(decoded_value) / Decimal(10**decimals)
+                                
+                                record = TransactionRecord(
+                                    tx_hash=tx_hash,
+                                    block_number=block_num,
+                                    timestamp=block_time,
+                                    t0_sec=block_time,
+                                    t1_ns=t1_ns,
+                                    from_address=log_from,
+                                    to_address=log_to,
+                                    amount=normalized_amount,
+                                    raw_amount=str(decoded_value),
+                                    asset_type=AssetType.ERC20,
+                                    asset_contract=contract_addr,
+                                    asset_symbol=symbol,
+                                    status=TxStatus.INCLUDED
+                                )
+                                await self._dispatch(record)
                 except Exception as e:
                     print(f"[!] Error checking block logs: {e}")
 
@@ -259,16 +316,27 @@ class BlockchainWatcher:
                 "amount": float(record.amount),
                 "asset_symbol": record.asset_symbol or "ETH",
                 "block_number": record.block_number,
-                "timestamp": record.timestamp
+                "timestamp": record.timestamp,
+                "t1_ns": record.t1_ns
             })
         except Exception as exc:
             print(f"[!] Warning publishing TX_INCLUDED: {exc}")
 
         # Dynamically add counterparties to watched set for real-time downstream hop monitoring
         if record.from_address:
-            self.watch_addresses.add(record.from_address.lower())
+            addr = record.from_address.lower()
+            self.watch_addresses.add(addr)
+            try:
+                await self.redis.sadd(f"watchlist:{self.root_suspect}", addr)
+            except:
+                pass
         if record.to_address:
-            self.watch_addresses.add(record.to_address.lower())
+            addr = record.to_address.lower()
+            self.watch_addresses.add(addr)
+            try:
+                await self.redis.sadd(f"watchlist:{self.root_suspect}", addr)
+            except:
+                pass
 
         print(f"\n[+] Detected & Persisted: {record.tx_hash[:16]}... ({record.amount} {record.asset_symbol})")
         print(f"[+] Active watch set dynamically expanded ({len(self.watch_addresses)} addresses monitored)")

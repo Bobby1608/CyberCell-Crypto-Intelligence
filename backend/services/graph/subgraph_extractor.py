@@ -7,7 +7,9 @@ load_dotenv()
 
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "forensicsPassword123")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+if not NEO4J_PASSWORD:
+    raise ValueError("NEO4J_PASSWORD environment variable must be set in .env")
 
 class SubgraphExtractor:
     def __init__(self):
@@ -23,14 +25,15 @@ class SubgraphExtractor:
         max_hops = max(0, (max_depth - 1) * 2)
         query = """
         MATCH (root:Wallet {address: $root_addr})
-        OPTIONAL MATCH (root)-[:SENT|RECEIVED_BY*0..6]->(w:Wallet)
-        WITH DISTINCT root, collect(DISTINCT w) + [root] AS target_wallets
-        UNWIND target_wallets AS w1
-        UNWIND target_wallets AS w2
-        MATCH (w1)-[:SENT]->(tx:Transaction)-[:RECEIVED_BY]->(w2)
+        OPTIONAL MATCH (root)-[:SENT]->(:Transaction)-[:RECEIVED_BY]->(w1:Wallet)
+        OPTIONAL MATCH (w1)-[:SENT]->(:Transaction)-[:RECEIVED_BY]->(w2:Wallet)
+        OPTIONAL MATCH (w2)-[:SENT]->(:Transaction)-[:RECEIVED_BY]->(w3:Wallet)
+        WITH DISTINCT root, collect(DISTINCT w1) + collect(DISTINCT w2) + collect(DISTINCT w3) + [root] AS target_wallets
+        UNWIND target_wallets AS sender_wallet
+        MATCH (sender_wallet)-[:SENT]->(tx:Transaction)-[:RECEIVED_BY]->(receiver_wallet:Wallet)
         RETURN DISTINCT
-            w1.address AS source,
-            w2.address AS target,
+            sender_wallet.address AS source,
+            receiver_wallet.address AS target,
             tx.tx_hash AS tx_hash,
             tx.amount AS amount,
             tx.asset_symbol AS asset_symbol,
@@ -39,7 +42,19 @@ class SubgraphExtractor:
             tx.block_number AS block_number
         """
         
-        async with self.driver.session() as session:
-            result = await session.run(query, root_addr=root_address.lower())
-            records = await result.data()  # Returns list of dicts directly
-            return records
+        try:
+            async with self.driver.session() as session:
+                result = await session.run(query, root_addr=root_address.lower())
+                records = await result.data()  # Returns list of dicts directly
+                
+                # Deduplicate by tx_hash to avoid cyclical overlap from UNWIND
+                unique_records = {}
+                for record in records:
+                    tx_hash = record.get("tx_hash")
+                    if tx_hash and tx_hash not in unique_records:
+                        unique_records[tx_hash] = record
+                        
+                return list(unique_records.values())
+        except Exception as exc:
+            print(f"[!] Neo4j database service unavailable at {NEO4J_URI}: {exc}")
+            raise RuntimeError(f"Neo4j database service is unavailable (Docker/Neo4j not running at {NEO4J_URI}).") from exc

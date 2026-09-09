@@ -1,6 +1,9 @@
 import re
 import os
 import json
+import time
+import orjson
+import structlog
 import asyncio
 from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException, Depends
@@ -15,8 +18,9 @@ from backend.services.risk.temporal_analyzer import (
     evaluate_risk
 )
 from backend.services.attribution.vasp_engine import VASPEngine
+from backend.api.auth import verify_api_key
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 class SurveillanceRequest(BaseModel):
     address: str = Field(..., description="40-character hex Ethereum address prefixed with 0x")
@@ -53,6 +57,7 @@ async def health_check():
     return {
         "status": "ok" if neo4j_ok else "degraded",
         "neo4j_connected": neo4j_ok,
+        "neo4j_status": "connected" if neo4j_ok else "unavailable (Docker container down)",
         "rpc_configured": rpc_ok,
         "active_surveillance_count": len(active_addresses),
         "active_surveillance_addresses": active_addresses
@@ -162,6 +167,8 @@ async def investigate_wallet(address: str, crawl: bool = False):
             },
             "riskReport": report_dict
         }
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to fetch investigation graph: {str(exc)}")
 
@@ -193,10 +200,32 @@ async def stream_events():
     SSE Endpoint streaming real-time event payloads (TX_INCLUDED, GRAPH_UPDATED, RISK_EVALUATED, SURVEILLANCE_ADDED).
     """
     async def sse_generator():
+        logger = structlog.get_logger()
         async for payload in event_bus.subscribe():
+            event_type = payload["event"]
+            event_data = payload["data"]
+
+            t5_ns = time.perf_counter_ns()
+            t1_ns = event_data.get("t1_ns") or t5_ns
+
+            backend_delta_ms = (t5_ns - t1_ns) / 1_000_000
+            event_data["telemetry"] = {
+                "t1_ns": t1_ns,
+                "t5_ns": t5_ns,
+                "backend_latency_ms": round(backend_delta_ms, 2)
+            }
+
+            logger.info(
+                "sse_dispatch_telemetry",
+                event_type=event_type,
+                backend_latency_ms=round(backend_delta_ms, 2),
+                t5_ns=t5_ns,
+                t1_ns=t1_ns
+            )
+
             yield {
-                "event": payload["event"],
-                "data": json.dumps(payload["data"]),
+                "event": event_type,
+                "data": orjson.dumps(event_data).decode("utf-8"),
                 "id": str(int(payload["timestamp"] * 1000))
             }
 

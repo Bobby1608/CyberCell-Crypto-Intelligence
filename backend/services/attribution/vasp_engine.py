@@ -1,3 +1,5 @@
+from __future__ import annotations
+import os
 import json
 from pathlib import Path
 from typing import Optional
@@ -13,15 +15,25 @@ class VASPDetectionResult(BaseModel):
     attributed_address: str
     jurisdiction: Optional[str] = None
     nodal_email: Optional[str] = None
-    evidence: list[str]
+    evidence: list[str] = []
 
 class VASPEngine:
     def __init__(self, registry_path: Optional[str] = None):
-        if registry_path is None:
-            registry_path = str(Path(__file__).parent.parent.parent / "data" / "labels" / "vasp_registry.json")
-        with open(registry_path, "r") as f:
-            self.registry: dict[str, dict] = json.load(f)
-        self.registry = {k.lower(): v for k, v in self.registry.items()}
+        base_dir = Path(__file__).parent.parent.parent / "data" / "labels"
+        self.registry = {}
+
+        if registry_path and Path(registry_path).exists():
+            load_path = Path(registry_path)
+        else:
+            load_path = base_dir / "vasp_registry.json"
+
+        if load_path.exists():
+            with open(load_path, "r") as f:
+                data = json.load(f)
+                for k, v in data.items():
+                    self.registry[k.lower()] = v
+
+        print(f"[VASP ENGINE] Loaded registry ({len(self.registry)} total entries)")
 
     def attribute_address(self, address: str) -> VASPDetectionResult:
         addr = address.lower()
