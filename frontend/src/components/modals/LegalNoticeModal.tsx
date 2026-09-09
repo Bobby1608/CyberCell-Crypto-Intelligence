@@ -1,6 +1,17 @@
 import React from 'react';
 import { X, Mail, FileSignature, AlertTriangle } from 'lucide-react';
 
+const T = {
+  panel:    '#0F172A',
+  elevated: '#1E293B',
+  border:   '#334155',
+  inkPri:   '#F8FAFC',
+  inkSec:   '#94A3B8',
+  crimson:  '#DC2626',
+  saffron:  '#D97706',
+  emerald:  '#10B981',
+} as const;
+
 interface LegalNoticeModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,100 +43,112 @@ Failure to comply may result in legal action under the Bharatiya Nyaya Sanhita (
 
   return (
     <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-      background: 'rgba(15, 23, 42, 0.4)',
+      position: 'fixed', top: 0, left: 0,
+      width: '100vw', height: '100vh',
+      background: 'rgba(11,25,44,0.85)',
       backdropFilter: 'blur(6px)',
-      display: 'flex',
-      alignItems: 'center',
-      justify: 'center',
-      zIndex: 100
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 100,
     }}>
       <div style={{
-        background: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderRadius: '16px',
+        background: T.panel,
+        border: `1px solid ${T.border}`,
+        borderRadius: '4px',
         width: '620px',
         overflow: 'hidden',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-        fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+        boxShadow: `0 0 0 1px rgba(220,38,38,0.2), 0 25px 50px rgba(0,0,0,0.7)`,
+        fontFamily: 'Inter, system-ui, sans-serif',
       }}>
-        
         {/* Header */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justify: 'space-between',
-          padding: '18px 24px',
-          borderBottom: '1px solid #e2e8f0',
-          background: '#f8fafc'
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px',
+          borderBottom: `1px solid ${T.border}`,
+          background: T.elevated,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ background: '#fef3c7', padding: '6px', borderRadius: '8px', display: 'flex' }}>
-              <FileSignature size={20} color="#d97706" />
+            <div style={{
+              background: 'rgba(220,38,38,0.15)', padding: '6px',
+              borderRadius: '4px', display: 'flex',
+              border: '1px solid rgba(220,38,38,0.35)',
+            }}>
+              <FileSignature size={18} color={T.crimson} />
             </div>
-            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-              Draft Section 94 BNSS Notice
-            </h2>
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 800, color: T.inkPri, letterSpacing: '0.06em' }}>
+                DRAFT SECTION 94 BNSS NOTICE
+              </div>
+              <div style={{ fontSize: '10px', color: T.inkSec }}>
+                Statutory freeze directive — {attribution.vasp_name}
+              </div>
+            </div>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px', borderRadius: '6px' }}>
-            <X size={20} />
+          <button onClick={onClose} style={{
+            background: 'transparent', border: `1px solid ${T.border}`,
+            color: T.inkSec, cursor: 'pointer', padding: '4px 6px', borderRadius: '4px',
+            display: 'flex', alignItems: 'center',
+          }}>
+            <X size={16} />
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '24px' }}>
+        <div style={{ padding: '20px' }}>
+          {/* Warning Banner */}
           <div style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '12px',
-            background: '#fef2f2',
-            padding: '14px 16px',
-            borderRadius: '10px',
-            border: '1px solid #fca5a5',
-            marginBottom: '16px'
+            display: 'flex', alignItems: 'flex-start', gap: '12px',
+            background: 'rgba(220,38,38,0.08)', padding: '12px 14px',
+            borderRadius: '4px', border: `1px solid rgba(220,38,38,0.4)`,
+            marginBottom: '14px',
           }}>
-            <AlertTriangle size={20} color="#dc2626" style={{ marginTop: '2px', flexShrink: 0 }} />
+            <AlertTriangle size={16} color={T.crimson} style={{ marginTop: '1px', flexShrink: 0 }} />
             <div>
-              <h4 style={{ margin: '0 0 4px 0', color: '#991b1b', fontSize: '13px', fontWeight: 700 }}>Legally Binding Directive</h4>
-              <p style={{ margin: 0, color: '#b91c1c', fontSize: '12px', lineHeight: '1.5', fontWeight: 500 }}>
+              <div style={{ color: T.crimson, fontSize: '11px', fontWeight: 800, marginBottom: '3px', letterSpacing: '0.04em' }}>
+                LEGALLY BINDING DIRECTIVE
+              </div>
+              <p style={{ margin: 0, color: '#F87171', fontSize: '11px', lineHeight: 1.6, fontWeight: 500 }}>
                 Executing this action will formally transmit a freeze directive to the registered Nodal Officer of <strong>{attribution.vasp_name}</strong>.
               </p>
             </div>
           </div>
 
-          <label style={{ display: 'block', fontSize: '12px', color: '#475569', marginBottom: '8px', fontWeight: 700 }}>Generated Notice Draft</label>
-          <textarea 
-            readOnly 
-            value={draftText} 
+          <label style={{ display: 'block', fontSize: '10px', color: T.inkSec, marginBottom: '6px', fontWeight: 700, letterSpacing: '0.08em' }}>
+            GENERATED NOTICE DRAFT
+          </label>
+          <textarea
+            readOnly
+            value={draftText}
             style={{
-              width: '100%',
-              height: '220px',
-              boxSizing: 'border-box',
-              background: '#f8fafc',
-              border: '1px solid #cbd5e1',
-              padding: '14px',
-              borderRadius: '8px',
-              color: '#0f172a',
-              fontSize: '12.5px',
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlop, Consolas, monospace',
-              outline: 'none',
-              resize: 'none',
-              lineHeight: '1.5',
-              fontWeight: 500
-            }} 
+              width: '100%', height: '220px', boxSizing: 'border-box',
+              background: T.elevated,
+              border: `1px solid ${T.border}`,
+              padding: '12px',
+              borderRadius: '4px',
+              color: T.inkPri,
+              fontSize: '11.5px',
+              fontFamily: '"JetBrains Mono", ui-monospace, Consolas, monospace',
+              outline: 'none', resize: 'none', lineHeight: 1.6, fontWeight: 500,
+            }}
           />
 
           {/* Footer Actions */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
-            <button type="button" onClick={onClose} style={{ padding: '9px 18px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#475569', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${T.border}` }}>
+            <button type="button" onClick={onClose} style={{
+              padding: '8px 16px',
+              background: 'transparent', border: `1px solid ${T.border}`,
+              borderRadius: '4px', color: T.inkSec, cursor: 'pointer',
+              fontSize: '12px', fontWeight: 600,
+            }}>
               Cancel
             </button>
-            <button type="button" onClick={handleSend} style={{ padding: '9px 20px', background: '#dc2626', border: 'none', borderRadius: '8px', color: '#ffffff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
-              <Mail size={14} /> Transmit Notice
+            <button type="button" onClick={handleSend} style={{
+              padding: '8px 18px',
+              background: 'rgba(220,38,38,0.85)', border: `1px solid ${T.crimson}`,
+              borderRadius: '4px', color: '#fff', cursor: 'pointer',
+              fontSize: '12px', fontWeight: 800, letterSpacing: '0.06em',
+              display: 'flex', alignItems: 'center', gap: '6px',
+            }}>
+              <Mail size={13} /> TRANSMIT NOTICE
             </button>
           </div>
         </div>
@@ -135,4 +158,3 @@ Failure to comply may result in legal action under the Bharatiya Nyaya Sanhita (
 };
 
 export default LegalNoticeModal;
-

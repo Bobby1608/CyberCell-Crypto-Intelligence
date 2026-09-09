@@ -1,24 +1,127 @@
 import React, { useState } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
-import { Copy, Check, ShieldAlert, GitCommit, Building2 } from 'lucide-react';
+import { Copy, Check, ShieldAlert, GitCommit, Building2, ShieldCheck } from 'lucide-react';
+import { formatAddress } from '../../utils/formatters';
+
+// ─── Design Tokens (mirrored from CSS for inline React use) ──────────────────
+const T = {
+  canvas:   '#0B192C',
+  panel:    '#0F172A',
+  elevated: '#1E293B',
+  border:   '#334155',
+  inkPri:   '#F8FAFC',
+  inkSec:   '#94A3B8',
+  crimson:  '#DC2626',
+  saffron:  '#D97706',
+  emerald:  '#10B981',
+  cyan:     '#06B6D4',
+} as const;
 
 export interface WalletNodeData {
-  address: string;
-  label?: string;
-  type?: 'suspect' | 'intermediary' | 'exchange' | 'defi' | 'victim';
+  address:   string;
+  label?:    string;
+  type?:     'suspect' | 'intermediary' | 'exchange' | 'defi' | 'victim';
   riskScore?: 'HIGH' | 'MED' | 'LOW' | 'CLEAN' | 'CRITICAL';
   hopCount?: number;
-  is_vasp?: boolean;
+  is_vasp?:  boolean;
+  isVasp?:   boolean;
+  category?: string;
   vasp_name?: string;
+  // Extended fields — populated from API graph node data
+  balance?:  number | null;
+  netFlow?:  number | null;
+  txMeta?:   string | null;
 }
+
+export const isVaspNode = (data: WalletNodeData): boolean => {
+  return !!(
+    data.is_vasp ||
+    data.isVasp ||
+    data.category === 'VASP' ||
+    data.type === 'exchange' ||
+    data.type === 'defi' ||
+    (data.vasp_name && data.vasp_name.trim().length > 0)
+  );
+};
+
+// ─── Semantic border rules ────────────────────────────────────────────────────
+// ROOT_SUSPECT / Victim  → 1.5px solid crimson #DC2626
+// INTERMEDIARY           → 1.5px dashed amber #F59E0B
+// TERMINAL VASP/EXCHANGE → 1.5px solid emerald #10B981, shadow: 0 0 14px rgba(16,185,129,0.35)
+
+const getBorderStyle = (nodeData: WalletNodeData, selected: boolean): {
+  border: string;
+  glow: string;
+  roleLabel: string;
+  roleColor: string;
+  handleColor: string;
+  icon: React.ElementType;
+} => {
+  if (selected) {
+    return {
+      border: `2px solid ${T.cyan}`,
+      glow: `0 0 0 3px rgba(6,182,212,0.2), 0 8px 24px rgba(0,0,0,0.5)`,
+      roleLabel: '',
+      roleColor: T.cyan,
+      handleColor: T.cyan,
+      icon: ShieldAlert,
+    };
+  }
+
+  if (isVaspNode(nodeData)) {
+    const headerTag = nodeData.type === 'defi' ? 'DEFI POOL' : (nodeData.category === 'VASP' || nodeData.is_vasp || nodeData.isVasp ? 'VASP' : 'EXCHANGE');
+    return {
+      border: `1.5px solid ${T.emerald}`,
+      glow: `0 0 14px rgba(16, 185, 129, 0.35), 0 2px 8px rgba(0,0,0,0.4)`,
+      roleLabel: headerTag,
+      roleColor: T.emerald,
+      handleColor: T.emerald,
+      icon: ShieldCheck,
+    };
+  }
+
+  if (nodeData.type === 'suspect' || nodeData.type === 'victim') {
+    return {
+      border: `1.5px solid ${T.crimson}`,
+      glow: `0 4px 20px rgba(220,38,38,0.15), 0 2px 8px rgba(0,0,0,0.4)`,
+      roleLabel: 'ROOT SUSPECT',
+      roleColor: T.crimson,
+      handleColor: T.crimson,
+      icon: ShieldAlert,
+    };
+  }
+
+  // Default: Intermediary Mule Hop — dashed saffron
+  return {
+    border: `1.5px dashed ${T.saffron}`,
+    glow: `0 4px 16px rgba(217,119,6,0.1), 0 2px 8px rgba(0,0,0,0.4)`,
+    roleLabel: nodeData.hopCount != null ? `MULE HOP ${nodeData.hopCount}` : 'INTERMEDIARY',
+    roleColor: T.saffron,
+    handleColor: T.saffron,
+    icon: GitCommit,
+  };
+};
+
+const getRiskBadgeStyle = (riskScore: string) => {
+  switch (riskScore) {
+    case 'CRITICAL': return { bg: 'rgba(220,38,38,0.2)', border: 'rgba(220,38,38,0.5)', text: '#DC2626' };
+    case 'HIGH':     return { bg: 'rgba(220,38,38,0.15)', border: 'rgba(220,38,38,0.4)', text: '#DC2626' };
+    case 'MED':      return { bg: 'rgba(217,119,6,0.15)', border: 'rgba(217,119,6,0.4)', text: '#D97706' };
+    case 'LOW':      return { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.4)', text: '#10B981' };
+    case 'CLEAN':    return { bg: 'rgba(100,116,139,0.12)', border: 'rgba(100,116,139,0.3)', text: '#64748B' };
+    default:         return { bg: 'rgba(51,65,85,0.5)', border: '#334155', text: '#94A3B8' };
+  }
+};
 
 export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
   const [copied, setCopied] = useState(false);
   const nodeData = data as unknown as WalletNodeData;
 
   const address = nodeData.address || '0x0000...0000';
-  const truncatedAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
-  const nodeType = nodeData.type || 'intermediary';
+  const truncatedAddress = formatAddress(address, 6, 4);
+  const style = getBorderStyle(nodeData, !!selected);
+  const IconComponent = style.icon;
+  const riskBadge = nodeData.riskScore ? getRiskBadgeStyle(nodeData.riskScore) : null;
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -27,167 +130,142 @@ export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Forensic classification badge styling (Light theme primary with high contrast)
-  const getBadgeStyle = () => {
-    if (nodeData.is_vasp) {
-      return {
-        bg: '#ecfdf5',
-        border: '#a7f3d0',
-        text: '#047857',
-        handleColor: '#059669',
-        label: nodeData.vasp_name ? `HOT WALLET: ${nodeData.vasp_name.toUpperCase()}` : 'VASP DEPOSIT',
-        icon: Building2
-      };
-    }
-
-    switch (nodeType) {
-      case 'suspect':
-      case 'victim':
-        return {
-          bg: '#fef2f2',
-          border: '#fca5a5',
-          text: '#dc2626',
-          handleColor: '#ef4444',
-          label: 'ROOT SUSPECT',
-          icon: ShieldAlert
-        };
-      case 'exchange':
-      case 'defi':
-        return {
-          bg: '#ecfdf5',
-          border: '#a7f3d0',
-          text: '#047857',
-          handleColor: '#059669',
-          label: nodeType === 'exchange' ? 'VASP DEPOSIT' : 'DEFI POOL',
-          icon: Building2
-        };
-      default:
-        return {
-          bg: '#eff6ff',
-          border: '#bfdbfe',
-          text: '#1d4ed8',
-          handleColor: '#2563eb',
-          label: nodeData.hopCount ? `HOP ${nodeData.hopCount}` : 'INTERMEDIARY',
-          icon: GitCommit
-        };
-    }
-  };
-
-  const style = getBadgeStyle();
-  const IconComponent = style.icon;
+  const hasMetrics = nodeData.balance != null || nodeData.netFlow != null || nodeData.txMeta;
 
   return (
-    <div
-      style={{
-        width: 248,
-        padding: '12px 14px',
-        borderRadius: '12px',
-        background: '#ffffff',
-        border: selected ? '2px solid #0284c7' : `1.5px solid ${style.border}`,
-        boxShadow: selected
-          ? '0 0 0 3px rgba(2, 132, 199, 0.2), 0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-          : '0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04)',
-        color: '#0f172a',
-        fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-        transition: 'all 0.2s ease-in-out',
-        position: 'relative'
-      }}
-    >
-      {/* Input Connection Handle */}
+    <div style={{
+      width: 220,
+      padding: '10px 12px',
+      borderRadius: '4px',
+      background: T.elevated,
+      border: style.border,
+      boxShadow: style.glow,
+      color: T.inkPri,
+      fontFamily: 'Inter, system-ui, sans-serif',
+      transition: 'all 0.15s ease-in-out',
+      position: 'relative',
+    }}>
+      {/* Input Handle */}
       <Handle
         type="target"
         position={Position.Left}
         style={{
           background: style.handleColor,
-          width: 10,
-          height: 10,
-          border: '2px solid #ffffff',
-          boxShadow: '0 0 4px rgba(0,0,0,0.15)'
+          width: 8, height: 8,
+          border: `2px solid ${T.panel}`,
+          boxShadow: `0 0 6px ${style.handleColor}80`,
         }}
       />
 
-      {/* Card Header: Classification Badge & Icon */}
+      {/* Role Badge Row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '3px 8px',
-            borderRadius: '6px',
-            background: style.bg,
-            border: `1px solid ${style.border}`,
-            color: style.text,
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.3px'
-          }}
-        >
-          <IconComponent size={12} />
-          <span>{style.label}</span>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
+          padding: '2px 7px', borderRadius: '4px',
+          background: `${style.roleColor}18`,
+          border: `1px solid ${style.roleColor}44`,
+          color: style.roleColor, fontSize: '9px', fontWeight: 800, letterSpacing: '0.06em',
+        }}>
+          <IconComponent size={10} />
+          <span>{style.roleLabel || nodeData.label || 'NODE'}</span>
         </div>
 
-        {nodeData.riskScore && (
-          <span
-            style={{
-              fontSize: '10px',
-              fontWeight: 800,
-              padding: '2px 6px',
-              borderRadius: '4px',
-              background: nodeData.riskScore === 'HIGH' || nodeData.riskScore === 'CRITICAL' ? '#fef2f2' : '#f1f5f9',
-              border: `1px solid ${nodeData.riskScore === 'HIGH' || nodeData.riskScore === 'CRITICAL' ? '#fca5a5' : '#cbd5e1'}`,
-              color: nodeData.riskScore === 'HIGH' || nodeData.riskScore === 'CRITICAL' ? '#dc2626' : '#475569'
-            }}
-          >
+        {riskBadge && nodeData.riskScore && (
+          <span style={{
+            fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px',
+            background: riskBadge.bg, border: `1px solid ${riskBadge.border}`,
+            color: riskBadge.text, letterSpacing: '0.04em',
+          }}>
             {nodeData.riskScore}
           </span>
         )}
       </div>
 
-      {/* Address & Copy Action */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
+      {/* Entity / Exchange Name if VASP */}
+      {(nodeData.vasp_name || (isVaspNode(nodeData) && nodeData.label)) && (
+        <div style={{
+          fontSize: '11px', fontWeight: 800, color: T.emerald,
+          marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+        }}>
+          {nodeData.vasp_name || nodeData.label}
+        </div>
+      )}
+
+      {/* Address + Copy */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasMetrics ? '8px' : '0' }}>
         <span
           style={{
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlop, Consolas, monospace',
-            fontSize: '13px',
-            fontWeight: 700,
-            color: '#0f172a',
-            letterSpacing: '-0.2px'
+            fontFamily: '"JetBrains Mono", ui-monospace, Consolas, monospace',
+            fontSize: '12px', fontWeight: 700,
+            color: T.inkPri, letterSpacing: '-0.2px',
           }}
           title={address}
         >
           {truncatedAddress}
         </span>
-
         <button
           onClick={handleCopy}
           style={{
-            background: copied ? '#ecfdf5' : '#f8fafc',
-            border: `1px solid ${copied ? '#a7f3d0' : '#e2e8f0'}`,
-            color: copied ? '#059669' : '#64748b',
-            cursor: 'pointer',
-            padding: '4px 6px',
-            display: 'flex',
-            alignItems: 'center',
-            borderRadius: '6px',
-            transition: 'all 0.15s ease'
+            background: copied ? 'rgba(16,185,129,0.12)' : 'transparent',
+            border: `1px solid ${copied ? 'rgba(16,185,129,0.4)' : T.border}`,
+            color: copied ? T.emerald : T.inkSec,
+            cursor: 'pointer', padding: '3px 5px',
+            display: 'flex', alignItems: 'center',
+            borderRadius: '4px', transition: 'all 0.15s ease',
           }}
           title="Copy full address"
         >
-          {copied ? <Check size={13} /> : <Copy size={13} />}
+          {copied ? <Check size={11} /> : <Copy size={11} />}
         </button>
       </div>
 
-      {/* Output Connection Handle */}
+      {/* Extended Metrics (balance, netFlow, txMeta) — only if API provides them */}
+      {hasMetrics && (
+        <div style={{
+          borderTop: `1px solid ${T.border}`,
+          paddingTop: '7px',
+          display: 'flex', flexDirection: 'column', gap: '3px',
+        }}>
+          {nodeData.txMeta && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+              <span style={{ color: T.inkSec }}>Role</span>
+              <span style={{ color: T.inkPri, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace' }}>
+                {nodeData.txMeta}
+              </span>
+            </div>
+          )}
+          {nodeData.balance != null && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+              <span style={{ color: T.inkSec }}>Bal</span>
+              <span style={{ color: T.inkPri, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace' }}>
+                {nodeData.balance.toFixed(4)} ETH
+              </span>
+            </div>
+          )}
+          {nodeData.netFlow != null && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+              <span style={{ color: T.inkSec }}>Net Flow</span>
+              <span style={{
+                fontWeight: 800,
+                fontFamily: '"JetBrains Mono", monospace',
+                color: nodeData.netFlow < 0 ? T.crimson : T.emerald,
+              }}>
+                {nodeData.netFlow >= 0 ? '+' : ''}{nodeData.netFlow.toFixed(4)} ETH
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Output Handle */}
       <Handle
         type="source"
         position={Position.Right}
         style={{
           background: style.handleColor,
-          width: 10,
-          height: 10,
-          border: '2px solid #ffffff',
-          boxShadow: '0 0 4px rgba(0,0,0,0.15)'
+          width: 8, height: 8,
+          border: `2px solid ${T.panel}`,
+          boxShadow: `0 0 6px ${style.handleColor}80`,
         }}
       />
     </div>
@@ -195,4 +273,3 @@ export const WalletNode: React.FC<NodeProps> = ({ data, selected }) => {
 };
 
 export default WalletNode;
-

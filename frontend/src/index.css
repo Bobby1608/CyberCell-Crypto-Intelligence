@@ -1,47 +1,31 @@
-:root {
-  color-scheme: light;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #f8fafc;
-  color: #0f172a;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
-  /* Theme variables - Light Mode Default */
-  --bg-app: #f8fafc;
-  --bg-header: #ffffff;
-  --bg-card: #ffffff;
-  --bg-subtle: #f1f5f9;
-  --border-color: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --text-main: #0f172a;
-  --text-muted: #64748b;
-  --text-dim: #94a3b8;
-  --primary: #0284c7;
-  --primary-hover: #0369a1;
-  --accent: #2563eb;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── FORENSIC SECOPS DESIGN SYSTEM ─────────────────────────── */
+:root {
+  --surface-canvas:   #0B192C;
+  --surface-panel:    #0F172A;
+  --surface-elevated: #1E293B;
+  --border-muted:     #334155;
+  --ink-primary:      #F8FAFC;
+  --ink-secondary:    #94A3B8;
+  --accent-crimson:   #DC2626;
+  --accent-saffron:   #D97706;
+  --accent-emerald:   #10B981;
+  --accent-cyan:      #06B6D4;
+
+  color-scheme: dark;
+  background-color: var(--surface-canvas);
+  color: var(--ink-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-[data-theme="dark"] {
-  color-scheme: dark;
-  background-color: #090d16;
-  color: #f8fafc;
-
-  --bg-app: #090d16;
-  --bg-header: #0f172a;
-  --bg-card: #0f172a;
-  --bg-subtle: #1e293b;
-  --border-color: #1e293b;
-  --border-strong: #334155;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
-  --primary: #0284c7;
-  --primary-hover: #38bdf8;
-  --accent: #38bdf8;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
+/* ─── RESET ──────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 body {
@@ -50,8 +34,8 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background-color: var(--bg-app);
-  color: var(--text-main);
+  background-color: var(--surface-canvas);
+  color: var(--ink-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -65,70 +49,120 @@ body {
   flex-direction: column;
 }
 
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ─── MONOSPACE ENFORCEMENT ──────────────────────────────────── */
+/* All wallet hashes, tx hashes, timestamps, performance deltas */
+.font-mono,
+code, pre,
+[data-mono],
+.address-chip,
+.tx-hash,
+.timestamp {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* ─── SCROLLBARS ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-muted); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-secondary); }
 
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: #334155;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Animations */
+/* ─── ANIMATIONS ─────────────────────────────────────────────── */
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.spin { animation: spin 1.5s linear infinite; }
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.pulse-glow { animation: pulse-glow 1.8s ease-in-out infinite; }
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-elevated) 25%,
+    #253347 50%,
+    var(--surface-elevated) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite;
+  border-radius: 4px;
 }
 
-.spin {
-  animation: spin 1.5s linear infinite;
+@keyframes slide-in-left {
+  from { transform: translateX(-12px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
 }
+.slide-in { animation: slide-in-left 0.2s ease-out forwards; }
 
-/* React Flow Controls & MiniMap Theme Styles */
+/* ─── REACT FLOW OVERRIDES ───────────────────────────────────── */
 .react-flow__controls {
-  border-radius: 8px !important;
+  border-radius: 4px !important;
   overflow: hidden !important;
-  box-shadow: var(--shadow-md) !important;
+  background: var(--surface-panel) !important;
+  border: 1px solid var(--border-muted) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
 }
-
 .react-flow__controls-button {
-  background-color: var(--bg-card) !important;
-  border-bottom: 1px solid var(--border-color) !important;
-  color: var(--text-main) !important;
-  fill: var(--text-main) !important;
+  background-color: var(--surface-panel) !important;
+  border-bottom: 1px solid var(--border-muted) !important;
+  color: var(--ink-primary) !important;
+  fill: var(--ink-secondary) !important;
   transition: all 0.15s ease !important;
 }
-
 .react-flow__controls-button:hover {
-  background-color: var(--bg-subtle) !important;
+  background-color: var(--surface-elevated) !important;
 }
-
 .react-flow__controls-button svg {
-  fill: var(--text-main) !important;
-  stroke: var(--text-main) !important;
+  fill: var(--ink-secondary) !important;
+  stroke: var(--ink-secondary) !important;
 }
-
 .react-flow__minimap {
-  border-radius: 8px !important;
+  border-radius: 4px !important;
   overflow: hidden !important;
+  border: 1px solid var(--border-muted) !important;
+  background: var(--surface-panel) !important;
+}
+.react-flow__panel.react-flow__attribution {
+  display: none !important;
 }
 
+/* ─── FORM INPUTS ────────────────────────────────────────────── */
+input, select, textarea {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-muted);
+  color: var(--ink-primary);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent-cyan);
+}
+select option {
+  background: var(--surface-elevated);
+  color: var(--ink-primary);
+}
 
+/* ─── SIDEBAR TAB ────────────────────────────────────────────── */
+.tab-active {
+  border-bottom: 2px solid var(--accent-cyan);
+  color: var(--ink-primary);
+}
+.tab-inactive {
+  border-bottom: 2px solid transparent;
+  color: var(--ink-secondary);
+}
+.tab-inactive:hover {
+  color: var(--ink-primary);
+}
+
+/* ─── EVENT LOG ROWS ─────────────────────────────────────────── */
+.event-row-odd  { background: var(--surface-panel); }
+.event-row-even { background: var(--surface-elevated); }

@@ -13,7 +13,6 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-downloads/
 eggs/
 .eggs/
 lib/
@@ -58,6 +57,7 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+backend_logs.txt
 
 # OS & Editor Metadata
 .DS_Store
@@ -75,12 +75,12 @@ dist/
 .npm
 .vite/
 
-# Exported Investigation Reports / Temporary Artifacts
+# Exported Investigation Reports / PDF Artifacts
 *.pdf
 LEA_Dossier_*.pdf
 Forensic_Report_*.pdf
 
-# Extra Architecture & Scratch Files (NOT for production push)
+# One-Off & Scratch Development Scripts
 cybercell_architecture-v4.md
 mainarch.md
 export-report
@@ -89,8 +89,9 @@ parse_msg.py
 read_last_msg.py
 test_neo4j.py
 test_subgraph.py
+generate_test_dossiers.py
 sepolia-watcher/
-backend_logs.txt
 
-# Nested External Cloned Repositories
+# External Cloned Datasets
 dawsbot-eth-labels/
+
