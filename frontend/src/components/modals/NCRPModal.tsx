@@ -41,16 +41,47 @@ export const NCRPModal: React.FC<NCRPModalProps> = ({ isOpen, onClose, onSubmit,
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(9, 13, 22, 0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', width: '600px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      background: 'rgba(15, 23, 42, 0.4)',
+      backdropFilter: 'blur(6px)',
+      display: 'flex',
+      alignItems: 'center',
+      justify: 'center',
+      zIndex: 100
+    }}>
+      <div style={{
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '16px',
+        width: '620px',
+        overflow: 'hidden',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+        fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+      }}>
         
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid #1e293b', background: '#1e293b' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justify: 'space-between',
+          padding: '18px 24px',
+          borderBottom: '1px solid #e2e8f0',
+          background: '#f8fafc'
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ShieldCheck size={20} color="#38bdf8" />
-            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#f8fafc' }}>NCRP / SAHYOG Complaint Intake</h2>
+            <div style={{ background: '#e0f2fe', padding: '6px', borderRadius: '8px', display: 'flex' }}>
+              <ShieldCheck size={20} color="#0284c7" />
+            </div>
+            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+              NCRP / SAHYOG Complaint Intake
+            </h2>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px', borderRadius: '6px' }}>
             <X size={20} />
           </button>
         </div>
@@ -108,15 +139,19 @@ export const NCRPModal: React.FC<NCRPModalProps> = ({ isOpen, onClose, onSubmit,
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', background: 'rgba(56, 189, 248, 0.1)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)', marginTop: '8px' }}>
-             <AlertCircle size={16} color="#38bdf8" style={{ marginTop: '2px' }} />
-             <p style={{ margin: 0, fontSize: '12px', color: '#cbd5e1', lineHeight: '1.5' }}>Submitting this form will automatically trigger real-time surveillance and a downstream multi-hop graph crawl on the reported suspect wallet.</p>
+          <div style={{ display: 'flex', gap: '10px', background: '#e0f2fe', padding: '12px 14px', borderRadius: '10px', border: '1px solid #bae6fd', marginTop: '4px' }}>
+             <AlertCircle size={18} color="#0284c7" style={{ marginTop: '2px', flexShrink: 0 }} />
+             <p style={{ margin: 0, fontSize: '12px', color: '#0369a1', lineHeight: '1.5', fontWeight: 500 }}>
+               Submitting this form will automatically trigger real-time surveillance and a downstream multi-hop graph crawl on the reported suspect wallet.
+             </p>
           </div>
 
           {/* Footer Actions */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-            <button type="button" onClick={onClose} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>Cancel</button>
-            <button type="submit" style={{ padding: '8px 16px', background: '#0284c7', border: 'none', borderRadius: '6px', color: '#f8fafc', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
+            <button type="button" onClick={onClose} style={{ padding: '9px 18px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#475569', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+              Cancel
+            </button>
+            <button type="submit" style={{ padding: '9px 20px', background: '#0284c7', border: 'none', borderRadius: '8px', color: '#ffffff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
               <Send size={14} /> Submit to I4C
             </button>
           </div>
@@ -127,7 +162,20 @@ export const NCRPModal: React.FC<NCRPModalProps> = ({ isOpen, onClose, onSubmit,
   );
 };
 
-const labelStyle = { display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '6px', fontWeight: 600 };
-const inputStyle = { width: '100%', boxSizing: 'border-box' as 'border-box', background: '#090d16', border: '1px solid #334155', padding: '10px 12px', borderRadius: '6px', color: '#f8fafc', fontSize: '13px', outline: 'none' };
+const labelStyle = { display: 'block', fontSize: '12px', color: '#475569', marginBottom: '6px', fontWeight: 700 };
+const inputStyle = {
+  width: '100%',
+  boxSizing: 'border-box' as 'border-box',
+  background: '#f8fafc',
+  border: '1px solid #cbd5e1',
+  padding: '10px 12px',
+  borderRadius: '8px',
+  color: '#0f172a',
+  fontSize: '13px',
+  outline: 'none',
+  fontFamily: 'inherit',
+  fontWeight: 500
+};
 
 export default NCRPModal;
+
