@@ -68,6 +68,7 @@ $$\text{Composite Risk Score} = \min\left(1.0, \sum (w_i \cdot I_{\text{detected
 ### 4. VASP Attribution & Legal Freezing Engine
 * **Two-Tier Attribution**: Exact signature matching and deposit-sweep heuristics targeting major exchanges (Binance, WazirX, CoinDCX, OKX, Kraken).
 * **Nodal Officer Directory**: Automated resolution of verified legal/nodal compliance desks.
+* **Testnet VASP Attribution**: Our VASP registry uses addresses independently labeled by Etherscan on the Sepolia testnet itself (sepolia.etherscan.io), not addresses we created or self-labeled. These are real exchange-controlled addresses; note that exchanges do not operationally credit testnet deposits, so this demonstrates correct attribution of real exchange infrastructure, not live account crediting. (e.g. [Verified Binance Sepolia Deposit Wallet](https://sepolia.etherscan.io/address/0xb7274a244c8cf6e65e5c88871c2721c4ed29d386)).
 * **Statutory Compliance**:
   * **Section 94 BNSS (Bharatiya Nagarik Suraksha Sanhita, 2023)**: Automated drafting of debit-freeze directives and KYC requisition orders.
   * **Section 63 BSA (Bharatiya Sakshya Adhiniyam, 2023)**: Cryptographic hash auditing and chain-of-custody preservation for secondary electronic evidence admissibility.

@@ -18,8 +18,9 @@ from backend.services.risk.temporal_analyzer import (
     evaluate_risk
 )
 from backend.services.attribution.vasp_engine import VASPEngine
+from backend.api.auth import verify_api_key
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 class SurveillanceRequest(BaseModel):
     address: str = Field(..., description="40-character hex Ethereum address prefixed with 0x")

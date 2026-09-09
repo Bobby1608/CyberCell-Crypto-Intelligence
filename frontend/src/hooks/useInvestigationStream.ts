@@ -20,9 +20,10 @@ export function useInvestigationStream(options: UseInvestigationStreamOptions = 
   const [events, setEvents] = useState<SSEEventPayload[]>([]);
   const [latestRiskReport, setLatestRiskReport] = useState<any>(null);
 
+    const apiKey = import.meta.env.VITE_API_KEY || 'demo-key-2026';
     const defaultApiUrl = typeof window !== 'undefined' && window.location.port === '5173'
-      ? 'http://localhost:8000/api/v1/stream/events'
-      : '/api/v1/stream/events';
+      ? `http://localhost:8000/api/v1/stream/events?api_key=${apiKey}`
+      : `/api/v1/stream/events?api_key=${apiKey}`;
 
     const {
       onTxIncluded,

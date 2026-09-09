@@ -105,6 +105,16 @@ class ReplayRunner:
 
                     typology_dict = report.typologies.model_dump() if hasattr(report.typologies, "model_dump") else report.typologies.dict()
 
+                    # Run VASP attribution so the SSE card shows in the frontend
+                    try:
+                        from backend.services.attribution.vasp_engine import VASPEngine
+                        vasp_engine = VASPEngine()
+                        vasp_result = vasp_engine.attribute_terminal_path(G, self.root_suspect)
+                        vasp_dict = vasp_result.model_dump() if hasattr(vasp_result, "model_dump") else vasp_result.dict()
+                    except Exception as vasp_exc:
+                        print(f"[REPLAY] VASP attribution skipped: {vasp_exc}")
+                        vasp_dict = None
+
                     await event_bus.publish(RISK_EVALUATED, {
                         "root_address": report.root_address,
                         "paths_detected": report.paths_detected,
@@ -113,6 +123,7 @@ class ReplayRunner:
                         "typologies": typology_dict,
                         "reasons": report.reasons,
                         "valid_paths": report.valid_paths,
+                        "vasp_attribution": vasp_dict,
                         "t1_ns": t1_ns
                     })
                     print(f"[REPLAY] Evaluated Risk Score: {report.risk_score} | Paths: {report.paths_detected}")

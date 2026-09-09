@@ -46,7 +46,15 @@ class SubgraphExtractor:
             async with self.driver.session() as session:
                 result = await session.run(query, root_addr=root_address.lower())
                 records = await result.data()  # Returns list of dicts directly
-                return records
+                
+                # Deduplicate by tx_hash to avoid cyclical overlap from UNWIND
+                unique_records = {}
+                for record in records:
+                    tx_hash = record.get("tx_hash")
+                    if tx_hash and tx_hash not in unique_records:
+                        unique_records[tx_hash] = record
+                        
+                return list(unique_records.values())
         except Exception as exc:
             print(f"[!] Neo4j database service unavailable at {NEO4J_URI}: {exc}")
             raise RuntimeError(f"Neo4j database service is unavailable (Docker/Neo4j not running at {NEO4J_URI}).") from exc

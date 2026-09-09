@@ -42,12 +42,16 @@ export const InvestigationDashboard: React.FC = () => {
       ? `http://localhost:8000${endpoint}`
       : endpoint;
 
+  const API_KEY = import.meta.env.VITE_API_KEY || 'demo-key-2026';
+
   // Fetch initial graph snapshot from REST API
   const fetchGraphSnapshot = useCallback(async (targetAddr: string, crawl: boolean = false) => {
     if (!targetAddr) return;
     if (crawl) setLoading(true);
     try {
-      const response = await fetch(getApiUrl(`/api/v1/investigation/${targetAddr}?crawl=${crawl}`));
+      const response = await fetch(getApiUrl(`/api/v1/investigation/${targetAddr}?crawl=${crawl}`), {
+        headers: { 'X-API-Key': API_KEY }
+      });
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);
       }
@@ -118,8 +122,13 @@ export const InvestigationDashboard: React.FC = () => {
     onRiskEvaluated: (report) => {
       if (report) {
         latestTelemetryRef.current = { t1_ns: report.telemetry?.t1_ns, t6_ms: report._t6_ms, backend_latency_ms: report.telemetry?.backend_latency_ms };
-        if (report.root_address === activeRoot) {
-          setRiskReport(report);
+        if (report.root_address?.toLowerCase() === activeRoot?.toLowerCase()) {
+          // Merge: preserve vasp_attribution from prior REST fetch if SSE event has none
+          setRiskReport((prev: any) => ({
+            ...prev,
+            ...report,
+            vasp_attribution: report.vasp_attribution ?? prev?.vasp_attribution
+          }));
         }
       }
     }
@@ -158,8 +167,13 @@ export const InvestigationDashboard: React.FC = () => {
   }, [nodes, edges, events]);
 
   useEffect(() => {
-    if (latestRiskReport && latestRiskReport.root_address === activeRoot) {
-      setRiskReport(latestRiskReport);
+    if (latestRiskReport && latestRiskReport.root_address?.toLowerCase() === activeRoot?.toLowerCase()) {
+      // Merge: preserve vasp_attribution from prior REST fetch if SSE event has none
+      setRiskReport((prev: any) => ({
+        ...prev,
+        ...latestRiskReport,
+        vasp_attribution: latestRiskReport.vasp_attribution ?? prev?.vasp_attribution
+      }));
     }
   }, [latestRiskReport, activeRoot]);
 
@@ -177,7 +191,7 @@ export const InvestigationDashboard: React.FC = () => {
     try {
       const res = await fetch(getApiUrl('/api/v1/surveillance/add'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
         body: JSON.stringify({ address: surveillanceInput.trim() })
       });
       if (res.ok) {
@@ -194,7 +208,7 @@ export const InvestigationDashboard: React.FC = () => {
     try {
       const res = await fetch(getApiUrl('/api/v1/integrations/ncrp/ingest'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
         body: JSON.stringify(data)
       });
       const responseData = await res.json();
@@ -215,7 +229,9 @@ export const InvestigationDashboard: React.FC = () => {
     if (!activeRoot) return;
     setIsDownloadingDossier(true);
     try {
-      const response = await fetch(getApiUrl(`/api/v1/investigation/${activeRoot}/export-report`));
+      const response = await fetch(getApiUrl(`/api/v1/investigation/${activeRoot}/export-report`), {
+        headers: { 'X-API-Key': API_KEY }
+      });
       if (!response.ok) throw new Error('Failed to generate report');
       
       const blob = await response.blob();
