@@ -82,6 +82,7 @@ Forensic_Report_*.pdf
 
 # One-Off & Scratch Development Scripts
 cybercell_architecture-v4.md
+README_MASTER.md
 mainarch.md
 export-report
 get_logs.py
