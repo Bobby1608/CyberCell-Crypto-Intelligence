@@ -11,10 +11,12 @@
   "dependencies": {
     "@dagrejs/dagre": "^1.1.4",
     "@xyflow/react": "^12.3.6",
+    "framer-motion": "^11.0.0",
     "lucide-react": "^1.38.0",
     "pdfmake": "^0.3.11",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^6.22.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

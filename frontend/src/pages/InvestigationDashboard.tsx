@@ -151,8 +151,10 @@ export const InvestigationDashboard: React.FC = () => {
         id: `e-${e.from.toLowerCase()}-${e.to.toLowerCase()}-${e.tx_hash || idx}`,
         source: e.from.toLowerCase(),
         target: e.to.toLowerCase(),
-        animated: true,
-        style: { stroke: T.cyan, strokeWidth: 2 },
+        animated: e.source === 'LIVE_WATCHER',
+        style: e.source === 'LIVE_WATCHER' 
+          ? { stroke: T.cyan, strokeWidth: 2, filter: `drop-shadow(0 0 5px ${T.cyan})` } 
+          : { stroke: T.saffron, strokeWidth: 2 },
         label: `${e.amount} ${e.asset_symbol}`,
         labelStyle: { fill: T.inkPri, fontWeight: 600, fontSize: 10, fontFamily: '"JetBrains Mono", monospace' },
         labelBgStyle: { fill: T.elevated, rx: 2, ry: 2, stroke: T.border },
@@ -170,8 +172,11 @@ export const InvestigationDashboard: React.FC = () => {
 
   const fetchTimerRef = useRef<any>(null);
   const debouncedFetchSnapshot = useCallback((targetAddr: string) => {
+    // Only background refetch if we don't already have nodes rendered or if it's explicitly needed
     if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
-    fetchTimerRef.current = setTimeout(() => fetchGraphSnapshot(targetAddr, false), 50);
+    fetchTimerRef.current = setTimeout(() => {
+      fetchGraphSnapshot(targetAddr, false);
+    }, 500);
   }, [fetchGraphSnapshot]);
 
   // ── Telemetry ─────────────────────────────────────────────────────────────
@@ -181,11 +186,13 @@ export const InvestigationDashboard: React.FC = () => {
   const { isConnected, events, latestRiskReport } = useInvestigationStream({
     onTxIncluded: (data) => {
       if (data) latestTelemetryRef.current = { t1_ns: data.telemetry?.t1_ns, t6_ms: data._t6_ms, backend_latency_ms: data.telemetry?.backend_latency_ms };
-      if (activeRoot) debouncedFetchSnapshot(activeRoot);
     },
     onGraphUpdated: (data) => {
       if (data) latestTelemetryRef.current = { t1_ns: data.telemetry?.t1_ns, t6_ms: data._t6_ms, backend_latency_ms: data.telemetry?.backend_latency_ms };
-      if (activeRoot) debouncedFetchSnapshot(activeRoot);
+      // Only refresh graph if the event came from the live watcher, not the crawler
+      if (activeRoot && data?.source !== 'HISTORICAL_BACKFILL') {
+        debouncedFetchSnapshot(activeRoot);
+      }
     },
     onRiskEvaluated: (report) => {
       if (report) {
@@ -196,6 +203,14 @@ export const InvestigationDashboard: React.FC = () => {
             vasp_attribution: report.vasp_attribution ?? prev?.vasp_attribution
           }));
         }
+      }
+    },
+    onHistoricalBackfillCompleted: (data) => {
+      // Background crawl finished — refresh the graph with full data from Neo4j
+      console.log('[Dashboard] Background crawl completed, refreshing graph...', data);
+      if (activeRoot) {
+        fetchGraphSnapshot(activeRoot, false);
+        setLoading(false);
       }
     }
   });
@@ -232,12 +247,13 @@ export const InvestigationDashboard: React.FC = () => {
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = searchAddress.trim().toLowerCase();
+    const clean = searchAddress.trim().toLowerCase().replace(/^:+/, '');
     if (clean) { setActiveRoot(clean); fetchGraphSnapshot(clean, true); }
   };
 
   const submitNCRP = async () => {
-    if (!ncrpWallet.trim()) { setNcrpFeedback('Root suspect wallet address is required.'); return; }
+    const walletClean = ncrpWallet.trim().toLowerCase().replace(/^:+/, '');
+    if (!walletClean) { setNcrpFeedback('Root suspect wallet address is required.'); return; }
     setNcrpSubmitting(true);
     setNcrpFeedback('');
     try {
@@ -246,7 +262,7 @@ export const InvestigationDashboard: React.FC = () => {
         fraud_typology:        ncrpTypology,
         victim_loss_inr:       ncrpVictimLoss ? parseFloat(ncrpVictimLoss) : undefined,
         asset_quote_crypto:    ncrpAssetQuote.trim() || undefined,
-        reported_wallet:       ncrpWallet.trim().toLowerCase(),
+        reported_wallet:       walletClean,
       };
       const res = await fetch(getApiUrl('/api/v1/integrations/ncrp/ingest'), {
         method: 'POST',
@@ -273,7 +289,7 @@ export const InvestigationDashboard: React.FC = () => {
   };
 
   const runForensicTrace = () => {
-    const clean = (ncrpWallet || searchAddress).trim().toLowerCase();
+    const clean = (ncrpWallet || searchAddress).trim().toLowerCase().replace(/^:+/, '');
     if (clean) { setActiveRoot(clean); fetchGraphSnapshot(clean, true); }
   };
 

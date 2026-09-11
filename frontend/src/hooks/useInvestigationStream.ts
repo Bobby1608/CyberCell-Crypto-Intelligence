@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface SSEEventPayload {
-  event: 'TX_INCLUDED' | 'GRAPH_UPDATED' | 'RISK_EVALUATED' | 'SURVEILLANCE_ADDED' | 'NCRP_COMPLAINT_INGESTED';
+  event: 'TX_INCLUDED' | 'GRAPH_UPDATED' | 'RISK_EVALUATED' | 'SURVEILLANCE_ADDED' | 'NCRP_COMPLAINT_INGESTED' | 'HISTORICAL_BACKFILL_STARTED' | 'HISTORICAL_BACKFILL_COMPLETED';
   data: any;
   timestamp: number;
 }
@@ -12,6 +12,8 @@ export interface UseInvestigationStreamOptions {
   onRiskEvaluated?: (data: any) => void;
   onSurveillanceAdded?: (data: any) => void;
   onNCRPComplaint?: (data: any) => void;
+  onHistoricalBackfillStarted?: (data: any) => void;
+  onHistoricalBackfillCompleted?: (data: any) => void;
   apiUrl?: string;
 }
 
@@ -31,6 +33,8 @@ export function useInvestigationStream(options: UseInvestigationStreamOptions = 
       onRiskEvaluated,
       onSurveillanceAdded,
       onNCRPComplaint,
+      onHistoricalBackfillStarted,
+      onHistoricalBackfillCompleted,
       apiUrl = defaultApiUrl
     } = options;
 
@@ -85,6 +89,10 @@ export function useInvestigationStream(options: UseInvestigationStreamOptions = 
             onSurveillanceAdded(parsedData);
           } else if (event_type === 'NCRP_COMPLAINT_INGESTED' && onNCRPComplaint) {
             onNCRPComplaint(parsedData);
+          } else if (event_type === 'HISTORICAL_BACKFILL_STARTED' && optionsRef.current.onHistoricalBackfillStarted) {
+            optionsRef.current.onHistoricalBackfillStarted(parsedData);
+          } else if (event_type === 'HISTORICAL_BACKFILL_COMPLETED' && optionsRef.current.onHistoricalBackfillCompleted) {
+            optionsRef.current.onHistoricalBackfillCompleted(parsedData);
           }
         } catch (e) {
           console.error('[SSE] Failed to parse event payload:', e);
@@ -96,6 +104,8 @@ export function useInvestigationStream(options: UseInvestigationStreamOptions = 
       eventSource.addEventListener('RISK_EVALUATED', (e: MessageEvent) => handleMessage('RISK_EVALUATED', e.data));
       eventSource.addEventListener('SURVEILLANCE_ADDED', (e: MessageEvent) => handleMessage('SURVEILLANCE_ADDED', e.data));
       eventSource.addEventListener('NCRP_COMPLAINT_INGESTED', (e: MessageEvent) => handleMessage('NCRP_COMPLAINT_INGESTED', e.data));
+      eventSource.addEventListener('HISTORICAL_BACKFILL_STARTED', (e: MessageEvent) => handleMessage('HISTORICAL_BACKFILL_STARTED', e.data));
+      eventSource.addEventListener('HISTORICAL_BACKFILL_COMPLETED', (e: MessageEvent) => handleMessage('HISTORICAL_BACKFILL_COMPLETED', e.data));
 
     } catch (exc) {
       console.error('[SSE] Failed to initialize EventSource:', exc);

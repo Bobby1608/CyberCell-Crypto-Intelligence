@@ -9,6 +9,7 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+        serif: ['Newsreader', 'Georgia', 'serif'],
       },
       colors: {
         'surface-canvas':  '#0B192C',
@@ -21,6 +22,19 @@ export default {
         'accent-saffron':  '#D97706',
         'accent-emerald':  '#10B981',
         'accent-cyan':     '#06B6D4',
+        obsidian: {
+          DEFAULT: "#070B12",
+          surface: "#0B111E",
+          elevated: "#0F172A",
+          border: "rgba(255, 255, 255, 0.08)",
+          borderStrong: "rgba(255, 255, 255, 0.16)"
+        },
+        sovereign: {
+          saffron: "#D97706",
+          saffronMuted: "#B45309",
+          emerald: "#10B981",
+          cyan: "#06B6D4"
+        }
       },
       borderRadius: {
         DEFAULT: '4px',
