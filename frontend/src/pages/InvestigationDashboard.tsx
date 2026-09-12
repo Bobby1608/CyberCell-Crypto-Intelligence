@@ -437,10 +437,7 @@ const resolveVaspContact = (vaspName?: string) => {
           </div>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.05em', color: T.inkPri, lineHeight: 1.2 }}>
-              I4C • CIS DIVISION // MHA FORENSICS
-            </div>
-            <div style={{ fontSize: '10px', color: T.inkSec, fontWeight: 500, letterSpacing: '0.06em' }}>
-              STATION: DL-CY-09 // INVESTIGATING OFFICER DISPATCH
+              CRYPTO FORENSICS
             </div>
           </div>
         </div>
